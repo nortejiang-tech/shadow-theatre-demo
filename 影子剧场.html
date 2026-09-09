@@ -1,0 +1,3950 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>影子剧场 · 给小朋友讲日食与月食</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   影子剧场 · 全部样式
+   配色见设计文档 4.1：深空 #070b1f→#1a1040，面板 rgba(18,22,48,.62)+blur
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --bg-top:#070b1f; --bg-bottom:#1a1040;
+  --sun-gold:#ffb547; --sun-white:#fff4d6;
+  --ink:#eef2ff; --ink2:#9aa4c8; --accent:#ffd166;
+  --umbra:#2a1f5c; --penumbra:#5b7ac4; --blood:#c1440e;
+  --glass:rgba(18,22,48,.62); --glass-brd:rgba(154,164,200,.22);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --font:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-top);
+  font-family:var(--font);color:var(--ink);user-select:none}
+button{font-family:var(--font);color:inherit;background:none;border:none;cursor:pointer}
+#gl{position:fixed;inset:0;display:block}
+
+/* ── UI 根：默认穿透点击，面板各自接收 ── */
+#ui{position:fixed;inset:0;pointer-events:none;z-index:10}
+#ui .glass,#ui button,#ui .clickable{pointer-events:auto}
+
+/* ── 毛玻璃卡片 ── */
+.glass{background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--glass-brd);border-radius:20px;
+  box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.glass-strong{background:rgba(16,20,44,.82);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  border:1px solid var(--glass-brd);border-radius:24px;box-shadow:0 20px 80px rgba(0,0,0,.6)}
+
+/* 面板显隐过渡 */
+.panel{transition:opacity .35s var(--ease),transform .35s var(--ease)}
+.panel-hidden{opacity:0 !important;pointer-events:none !important;transform:translateY(14px)}
+
+/* ── 旁白气泡 ── */
+#narrator{position:absolute;top:20px;left:20px;max-width:470px;padding:16px 20px 12px;
+  cursor:pointer}
+#narrator-name{display:inline-block;font-size:12px;letter-spacing:.14em;color:var(--accent);
+  background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);border-radius:99px;
+  padding:2px 12px;margin-bottom:8px}
+#narrator-text{font-size:21px;line-height:1.75;letter-spacing:.02em;min-height:3.5em;
+  font-variant-numeric:tabular-nums}
+#narrator-text b{color:var(--accent);font-weight:600}
+#narrator-bar{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+#narrator-hint{font-size:12px;color:var(--ink2)}
+#narrator-next{font-size:14px;color:var(--accent);padding:6px 14px;border-radius:99px;
+  border:1px solid rgba(255,209,102,.35);transition:all .2s var(--ease)}
+#narrator-next:hover{background:rgba(255,209,102,.12)}
+#narrator-next:active{transform:scale(.96)}
+
+/* ── 章节导航点 ── */
+#chapter-nav{position:absolute;top:22px;right:20px;display:flex;gap:12px;align-items:center;
+  padding:10px 16px}
+.dot{position:relative;width:18px;height:18px;border-radius:50%;
+  border:2px solid var(--ink2);transition:all .25s var(--ease);display:flex;
+  align-items:center;justify-content:center;font-size:10px;color:transparent}
+.dot:hover{transform:scale(1.25)}
+.dot.current{border-color:var(--accent);box-shadow:0 0 12px rgba(255,209,102,.5)}
+.dot.done{border-color:var(--badge-c,var(--accent));background:var(--badge-c,var(--accent))}
+.dot.locked::after{content:"🔒";position:absolute;font-size:9px;color:var(--ink2);
+  top:50%;left:50%;transform:translate(-50%,-50%)}
+#nav-home{font-size:16px;padding:2px 6px;border-radius:8px;transition:transform .2s}
+#nav-home:hover{transform:scale(1.2)}
+
+/* ── 右上工具（静音/性能） ── */
+#top-tools{position:absolute;top:74px;right:20px;display:flex;gap:8px}
+#top-tools button{width:44px;height:44px;border-radius:14px;font-size:18px;
+  background:var(--glass);backdrop-filter:blur(20px);border:1px solid var(--glass-brd);
+  transition:transform .15s var(--ease)}
+#top-tools button:active{transform:scale(.94)}
+
+/* ── 尺度提示 ── */
+#scale-note{position:absolute;top:126px;right:20px;font-size:12.5px;color:var(--ink2);
+  padding:8px 14px;max-width:250px;text-align:right;line-height:1.5;
+  font-variant-numeric:tabular-nums}
+
+/* ── 相机预设 ── */
+#cam-presets{position:absolute;right:20px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:8px}
+#cam-presets button{padding:10px 14px;border-radius:14px;font-size:13px;color:var(--ink2);
+  background:var(--glass);backdrop-filter:blur(20px);border:1px solid var(--glass-brd);
+  transition:all .2s var(--ease)}
+#cam-presets button:hover{color:var(--ink)}
+#cam-presets button:active{transform:scale(.96)}
+
+/* ── 迷你地球（左下） ── */
+#miniglobe-panel{position:absolute;left:20px;bottom:158px;padding:12px 14px 10px;width:240px}
+#miniglobe-title{font-size:13px;color:var(--ink2);margin-bottom:6px}
+#miniglobe{width:212px;height:212px;cursor:crosshair;border-radius:50%;display:block;margin:0 auto}
+#miniglobe-hint{font-size:12px;color:var(--ink2);text-align:center;margin-top:6px;line-height:1.4}
+
+/* ── 小朋友的眼睛（右下 PIP，GL 视口精确覆盖 #eye-frame） ── */
+/* ⚠️ #eyepip 不能带背景/毛玻璃：眼睛视图是画在它下面那张 canvas 的 GL 视口里，
+   任何盖住 #eye-frame 的 DOM 背景都会把画面糊暗（血月最明显）。
+   毛玻璃质感改由标题栏自己承担，画面区域必须一路透到 canvas。 */
+#eyepip{position:absolute;right:20px;bottom:20px;padding:0;border-radius:16px;
+  background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+  border:none;box-shadow:none;transition:all .4s var(--ease)}
+#eye-head{display:flex;justify-content:space-between;align-items:center;
+  padding:7px 12px;background:var(--glass);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--glass-brd);border-bottom:none;border-radius:16px 16px 0 0}
+#eye-title{font-size:13px;color:var(--ink2)}
+#eye-expand{font-size:12px;color:var(--accent)}
+#eye-frame{position:relative;width:272px;height:272px;overflow:hidden;
+  background:transparent;border:1px solid var(--glass-brd);border-top:none;
+  border-radius:0 0 16px 16px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+#eye-zone{position:absolute;left:0;right:0;bottom:0;text-align:center;font-size:14px;
+  padding:6px;background:linear-gradient(transparent,rgba(7,11,31,.85));
+  pointer-events:none;font-weight:600;letter-spacing:.04em}
+body.eye-full #eyepip{right:0;bottom:0;padding:0;border-radius:0;background:none;
+  border:none;backdrop-filter:none}
+body.eye-full #eye-frame{width:100vw;height:100vh;border-radius:0;border:none;box-shadow:none}
+body.eye-full #eye-head{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none}
+body.eye-full #eye-head{position:absolute;top:14px;right:20px;left:20px;z-index:2}
+
+/* ── 控件面板（左下） ── */
+#controls{position:absolute;left:20px;bottom:20px;width:352px;padding:16px 18px 14px;
+  max-height:44vh;overflow-y:auto}
+#controls::-webkit-scrollbar{width:0}
+#controls-title{font-size:13px;color:var(--ink2);margin-bottom:10px;letter-spacing:.06em}
+.ctl-row{margin-bottom:14px}
+.ctl-row:last-child{margin-bottom:2px}
+.ctl-label{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+.ctl-label .v{color:var(--accent);font-variant-numeric:tabular-nums}
+.slider-wrap{position:relative;height:36px;display:flex;align-items:center}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:8px;border-radius:99px;
+  background:linear-gradient(90deg,var(--accent) var(--fill,50%),rgba(154,164,200,.25) var(--fill,50%));
+  outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;
+  border-radius:50%;background:#fff;border:3px solid var(--accent);cursor:grab;
+  box-shadow:0 2px 10px rgba(0,0,0,.5);transition:transform .12s var(--ease)}
+input[type=range]::-webkit-slider-thumb:active{cursor:grabbing;transform:scale(1.12)}
+input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;
+  border:3px solid var(--accent);cursor:grab}
+.bubble{position:absolute;top:-30px;transform:translateX(-50%);background:var(--accent);
+  color:#1a1040;font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:8px;
+  white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none;
+  font-variant-numeric:tabular-nums}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-4px;transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:var(--accent);border-bottom:none}
+.slider-wrap:hover .bubble,.slider-wrap.active .bubble{opacity:1}
+.ctl-sub{font-size:12px;color:var(--ink2);margin-top:4px;line-height:1.4}
+.ctl-btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{min-height:44px;padding:8px 18px;border-radius:16px;font-size:15px;font-weight:600;
+  background:rgba(154,164,200,.14);border:1px solid var(--glass-brd);
+  transition:all .18s var(--ease)}
+.btn:hover{background:rgba(154,164,200,.24)}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#ff9f43);color:#221600;border:none;
+  box-shadow:0 4px 18px rgba(255,159,67,.35)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.on{background:rgba(255,209,102,.2);border-color:var(--accent);color:var(--accent)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:14px;
+  padding:6px 0}
+.switch{width:50px;height:30px;border-radius:99px;background:rgba(154,164,200,.25);
+  position:relative;transition:background .25s var(--ease);flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;
+  border-radius:50%;background:#fff;transition:left .25s var(--ease)}
+.switch.on{background:var(--accent)}
+.switch.on::after{left:23px}
+
+/* ── 时间轴（底部中央） ── */
+#timeline-panel{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;padding:10px 18px;width:min(560px,44vw)}
+#timeline-panel.panel-hidden{transform:translateX(-50%) translateY(14px)}
+#timeline-panel button{width:44px;height:44px;border-radius:14px;font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:all .15s var(--ease)}
+#timeline-panel button:hover{background:rgba(154,164,200,.15)}
+#timeline-panel button:active{transform:scale(.94)}
+#tl-track{position:relative;flex:1;height:36px;cursor:pointer;display:flex;align-items:center}
+#tl-rail{width:100%;height:6px;border-radius:99px;background:rgba(154,164,200,.25);position:relative}
+#tl-fill{position:absolute;left:0;top:0;bottom:0;border-radius:99px;
+  background:linear-gradient(90deg,var(--accent),#ff9f43);width:0}
+#tl-thumb{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:#fff;
+  border:3px solid var(--accent);transform:translate(-50%,-50%);left:0;
+  box-shadow:0 2px 8px rgba(0,0,0,.5)}
+#tl-label{position:absolute;top:-26px;left:50%;transform:translateX(-50%);font-size:12px;
+  color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* ── 实时读数（右侧，眼睛上方） ── */
+#readouts{position:absolute;right:20px;bottom:330px;padding:12px 16px;font-size:13px;
+  line-height:1.9;min-width:230px;font-variant-numeric:tabular-nums}
+body.eye-full #readouts{bottom:auto;top:70px}
+#readouts .k{color:var(--ink2)}
+#readouts .v{color:var(--accent);float:right;font-weight:600}
+#readouts .row{display:flex;justify-content:space-between;gap:16px}
+#eclipse-type-badge{display:block;text-align:center;font-size:17px;font-weight:700;
+  padding:6px;border-radius:12px;margin-bottom:8px;letter-spacing:.1em;
+  background:rgba(255,209,102,.12);color:var(--accent);transition:all .3s var(--ease)}
+
+/* ── 模态（名片/挑战/总结） ── */
+#modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  background:rgba(4,6,18,.55);opacity:0;pointer-events:none;transition:opacity .3s var(--ease)}
+#modal.show{opacity:1;pointer-events:auto}
+#modal-card{max-width:560px;width:calc(100% - 64px);padding:32px 36px;text-align:center;
+  transform:translateY(16px) scale(.97);transition:transform .35s var(--ease)}
+#modal.show #modal-card{transform:none}
+#modal-card h2{font-size:26px;margin-bottom:6px}
+#modal-card .emoji{font-size:52px;display:block;margin-bottom:10px}
+#modal-card p{font-size:17px;line-height:1.8;color:var(--ink);margin:10px 0}
+#modal-card .sub{color:var(--ink2);font-size:14px}
+#modal-btns{display:flex;gap:12px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+#modal-card .facts{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+#modal-card .fact{background:rgba(154,164,200,.1);border-radius:12px;padding:8px 14px;
+  font-size:13px;color:var(--ink2)}
+#modal-card .fact b{display:block;color:var(--ink);font-size:15px;font-variant-numeric:tabular-nums}
+
+/* ── 徽章提示 ── */
+#badge-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(30px);
+  z-index:60;padding:16px 30px;border-radius:20px;opacity:0;text-align:center;
+  transition:all .45s var(--ease);pointer-events:none}
+#badge-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#badge-toast .t{font-size:13px;color:var(--accent);letter-spacing:.2em}
+#badge-toast .n{font-size:22px;font-weight:700;margin-top:2px}
+
+/* ── 章节标题 ── */
+#chapter-splash{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;pointer-events:none;opacity:0;
+  transition:opacity .6s var(--ease)}
+#chapter-splash.show{opacity:1}
+#chapter-splash .num{font-size:15px;letter-spacing:.5em;color:var(--accent);margin-bottom:12px}
+#chapter-splash .ttl{font-size:46px;font-weight:800;letter-spacing:.08em}
+#chapter-splash .goal{font-size:16px;color:var(--ink2);margin-top:14px}
+
+/* ── 第5章命中闪光 ── */
+#hit-flash{position:fixed;inset:0;z-index:35;pointer-events:none;opacity:0;
+  background:radial-gradient(circle,rgba(255,209,102,.5),rgba(255,209,102,.1) 60%,transparent)}
+#hit-flash.go{animation:hitflash .7s var(--ease)}
+@keyframes hitflash{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+
+/* ── 加载 ── */
+#loading{position:fixed;inset:0;z-index:100;background:var(--bg-top);display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  transition:opacity .8s var(--ease)}
+#loading.bye{opacity:0;pointer-events:none}
+#loading .moon{width:54px;height:54px;border-radius:50%;
+  background:radial-gradient(circle at 34% 32%,#fff4d6,#ffb547 58%,#c1440e);
+  animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(.86);opacity:.7}50%{transform:scale(1);opacity:1}}
+#loading .txt{font-size:15px;color:var(--ink2);letter-spacing:.3em}
+#loading .err{color:#ff7b7b;font-size:14px;max-width:400px;text-align:center;line-height:1.7}
+
+/* ── 第1章左侧 2D 对比图 ── */
+/* 放右侧：左边 top 有旁白、bottom 有控件面板，三者叠在一起会把旁白整段挡住。
+   （id 沿用 ch1-left，改名要动 JS 和 HTML，不值当。） */
+#ch1-left{position:absolute;right:24px;top:55%;transform:translateY(-50%);width:400px;
+  padding:18px 20px}
+#ch1-left h3{font-size:15px;color:var(--ink2);font-weight:500;margin-bottom:10px}
+#ch1-canvas{width:360px;height:360px;display:block}
+#ch1-note{font-size:13px;color:var(--ink2);margin-top:10px;line-height:1.5}
+
+/* ── 第5章计数 ── */
+#ch5-counter{position:absolute;left:50%;top:86px;transform:translateX(-50%);
+  padding:10px 26px;font-size:15px;text-align:center}
+#ch5-counter b{font-size:30px;color:var(--accent);font-variant-numeric:tabular-nums;
+  display:block;line-height:1.2}
+
+/* ── 窄窗口降级 ── */
+@media (max-width:1250px){
+  #readouts{display:none}
+  #eye-frame{width:220px;height:220px}
+  #miniglobe-panel{width:200px}#miniglobe{width:172px;height:172px}
+  #ch1-left{width:320px}#ch1-canvas{width:280px;height:280px}
+}
+@media (max-width:980px){
+  #narrator{max-width:300px}#narrator-text{font-size:17px}
+  #controls{width:290px}
+  #timeline-panel{width:70vw}
+  #scale-note{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="ui">
+  <!-- 旁白 -->
+  <div id="narrator" class="glass panel panel-hidden" title="点我跳过打字 / 下一句">
+    <span id="narrator-name">旁白</span>
+    <div id="narrator-text"></div>
+    <div id="narrator-bar">
+      <span id="narrator-hint">点气泡 → 下一句</span>
+      <button id="narrator-next">下一句 ▶</button>
+    </div>
+  </div>
+
+  <!-- 章节导航 -->
+  <div id="chapter-nav" class="glass"></div>
+
+  <!-- 工具 -->
+  <div id="top-tools">
+    <button id="mute-btn" class="clickable" title="静音开关">🔊</button>
+    <button id="perf-btn" class="clickable" title="性能模式（画面降级换流畅）">✨</button>
+  </div>
+
+  <!-- 尺度提示 -->
+  <div id="scale-note" class="glass"></div>
+
+  <!-- 相机预设 -->
+  <div id="cam-presets"></div>
+
+  <!-- 迷你地球 -->
+  <div id="miniglobe-panel" class="glass panel panel-hidden">
+    <div id="miniglobe-title">🌍 你站在哪里（朝向月亮的一面）</div>
+    <canvas id="miniglobe" width="424" height="424"></canvas>
+    <div id="miniglobe-hint">点一下地球，选个地方站</div>
+  </div>
+
+  <!-- 小朋友的眼睛 -->
+  <div id="eyepip" class="glass panel panel-hidden clickable" title="点一下放大 / 缩回">
+    <div id="eye-head"><span id="eye-title">👁 小朋友的眼睛</span><span id="eye-expand">⤢ 放大</span></div>
+    <div id="eye-frame"><div id="eye-zone"></div></div>
+  </div>
+
+  <!-- 控件 -->
+  <div id="controls" class="glass panel panel-hidden"></div>
+
+  <!-- 读数 -->
+  <div id="readouts" class="glass panel panel-hidden"></div>
+
+  <!-- 时间轴 -->
+  <div id="timeline-panel" class="glass panel panel-hidden">
+    <button id="tl-back" title="回到开头">⏮</button>
+    <button id="tl-play" title="播放 / 暂停">▶</button>
+    <button id="tl-speed" title="倍速">1×</button>
+    <div id="tl-track">
+      <div id="tl-label"></div>
+      <div id="tl-rail"><div id="tl-fill"></div></div>
+      <div id="tl-thumb"></div>
+    </div>
+  </div>
+
+  <!-- 第1章对比图 -->
+  <div id="ch1-left" class="glass panel panel-hidden">
+    <h3>真实的它们（按真正的大小画）</h3>
+    <canvas id="ch1-canvas" width="720" height="720"></canvas>
+    <div id="ch1-note"></div>
+  </div>
+
+  <!-- 第5章计数 -->
+  <div id="ch5-counter" class="glass panel panel-hidden">影子打中地球的次数<b id="ch5-n">0</b></div>
+</div>
+
+<!-- 模态 -->
+<div id="modal"><div id="modal-card" class="glass-strong"></div></div>
+
+<!-- 徽章提示 / 章节标题 / 闪光 / 加载 -->
+<div id="badge-toast" class="glass-strong"><div class="t">获得徽章</div><div class="n"></div></div>
+<div id="chapter-splash"><div class="num"></div><div class="ttl"></div><div class="goal"></div></div>
+<div id="hit-flash"></div>
+<div id="loading"><div class="moon"></div><div class="txt">影 子 剧 场</div>
+  <div class="err" id="loading-err"></div></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 1. 常量 ═══
+   全部天文常数集中于此（单位均为 km / 度 / 天），
+   代码其他位置不允许出现来历不明的魔数。
+   ═══════════════════════════════════════════════════════════════ */
+
+// ---- 天文常数（设计文档 5.1，照抄） ----
+const AU            = 149_597_870;    // km，天文单位（日地平均距离）
+const R_SUN         = 696_000;        // km，太阳半径
+const R_EARTH       = 6_371;          // km，地球平均半径
+const R_MOON        = 1_737.4;        // km，月球半径
+
+const D_SUN_MEAN    = 149_597_870;    // km，日地平均距离
+const D_SUN_PERI    = 147_100_000;    // km，近日点（约 1 月初）
+const D_SUN_APO     = 152_100_000;    // km，远日点（约 7 月初）
+
+const D_MOON_MEAN   = 384_400;        // km，地月平均距离
+const D_MOON_PERI   = 356_500;        // km，近地点（极值）
+const D_MOON_APO    = 406_700;        // km，远地点（极值）
+
+const MOON_INCL     = 5.145;          // 度，白道对黄道倾角
+const SYNODIC_MONTH = 29.530589;      // 天，朔望月
+const DRACONIC_MONTH= 27.212221;      // 天，交点月
+const ECLIPSE_SEASON= 173.31;         // 天，食季间隔
+const SAROS         = 6585.3213;      // 天，沙罗周期
+const NODE_REGRESSION_YEARS = 18.6;   // 年，交点退行周期
+const DAYS_PER_YEAR = 365.25;         // 天
+
+// 孩子看得懂的换算（文案用）：
+// 太阳/月亮直径比 ≈ 400.6，日地/地月距离比 ≈ 389.2 —— "400 除以 400 等于 1"
+
+// ---- 渲染布局常量（场景单位）----
+// 架构决策（文档 5.9）：物理计算永远用真实 km；渲染坐标只负责好看；
+// "哪种食"的判定永远由物理坐标决定，渲染几何被强制与判定一致。
+const MOON_LAT_CAP = 60;    // 月球黄纬渲染限幅：仅防沙盒里把倾角拉到极端，正常范围内几乎不介入
+const CONE_PEN_TIP = 2.3;   // 半影锥的初始张开率，仅作占位：每帧由 penTipRatio() 按物理覆盖
+const RE_RENDER   = 5;                              // 地球渲染半径
+const RM_RENDER   = RE_RENDER * R_MOON / R_EARTH;   // 月球渲染半径（真实比例 ≈ 0.27）
+const SUN_RENDER_R = 9;                             // 太阳渲染半径（装饰性，不进物理）
+const SUN_RENDER_POS = [-85, 0, 0];                 // 太阳位置：画面左侧外，只用来定方向
+// 地心→太阳的初始方向。⚠️ 必须由 SUN_RENDER_POS 推导，不能写死：
+// 曾经硬编码成 (1,0,0)（正好反了 180°），而序章不调 syncBodyUniforms()，
+// 于是首屏地球的亮面朝着背离太阳的一侧。让它跟着太阳位置走，就不会再错。
+const SUN_DIR_INIT = () => new THREE.Vector3(...SUN_RENDER_POS).normalize();
+const MOON_ORBIT_MIN = 13;                          // 近地点 → 渲染距离
+const MOON_ORBIT_MAX = 21;                          // 远地点 → 渲染距离
+const STAR_SPHERE_R  = 420;                         // 星空球半径
+const EARTH_ORBIT_R5 = 40;                          // 第5章日心视图中地球轨道半径
+const MOON_ORBIT_R5  = 8.5;                         // 第5章月球轨道渲染半径
+
+// 尺度旋钮（序章/沙盒用）：k∈[0,1]，0=真实比例，1=最夸张
+const EXAG_MAX = 25;      // 天体半径最大放大倍数
+const COMP_MAX = 0.08;    // 距离最大压缩率
+function renderRadiusKm(km, k)   { return km * Math.pow(EXAG_MAX, k) * (RE_RENDER / R_EARTH / Math.pow(EXAG_MAX, 0.62)); }
+function renderDistanceKm(km, k) { return km * Math.pow(COMP_MAX, k) * (RE_RENDER / R_EARTH / Math.pow(EXAG_MAX, 0.62)); }
+
+// ---- 配色（文档 4.1）----
+const C = {
+  bgTop:'#070b1f', bgBottom:'#1a1040',
+  sunCore:'#fff4d6', sunEdge:'#ffb547', corona:'#fff8e7',
+  ocean:'#1c4f8f', land:'#3f7a4a', land2:'#8a7a4e', atmo:'#5ba3e0',
+  moonHi:'#c8c4bc', moonLo:'#7a7770',
+  umbra:[0.165,0.122,0.361], penumbra:[0.357,0.478,0.769],
+  bloodEdge:[0.90,0.45,0.18], bloodMid:[0.76,0.27,0.06], bloodCenter:[0.42,0.11,0.03],
+  ink:'#eef2ff', ink2:'#9aa4c8', accent:'#ffd166',
+};
+
+// ---- 徽章 ----
+const BADGES = [
+  { name:'量天尺',     emoji:'📏', color:'#ffd166' },  // 第1章
+  { name:'影子猎人',   emoji:'🎯', color:'#9b7eff' },  // 第2章
+  { name:'追日者',     emoji:'☀️', color:'#ff9f43' },  // 第3章
+  { name:'血月见证者', emoji:'🔴', color:'#e05535' },  // 第4章
+  { name:'交点守望者', emoji:'📐', color:'#5bd6a5' },  // 第5章
+  { name:'毕业典礼',   emoji:'🎓', color:'#eef2ff' },  // 全部完成
+];
+
+const LS_KEY = 'shadowTheatre.v1';
+
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 2. 数学工具 ═══
+   全部物理计算使用真实 km。这些函数是唯一真相源。
+   ═══════════════════════════════════════════════════════════════ */
+
+const DEG = Math.PI / 180;
+const clamp = (x,a,b)=>Math.min(b,Math.max(a,x));
+const lerp  = (a,b,t)=>a+(b-a)*t;
+function smoothstep(a,b,x){ const t = clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); }
+function easeInOutCubic(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+function easeOutCubic(t){ return 1-Math.pow(1-t,3); }
+
+/** 从距离 d 处看半径 R 的球，角直径（弧度）。严格解。 */
+function angularDiameter(R,d){ return 2*Math.asin(R/d); }
+const angRad = (R,d)=>Math.asin(R/d);   // 角半径（弧度）
+
+/**
+ * 两圆相交面积（文档 5.4，全作数学核心，JS 版）。
+ * 与 GLSL 版逐字对应，用于逻辑判断与自测。
+ */
+function circleIntersectArea(r1,r2,d){
+  if (d >= r1+r2) return 0;                       // 相离
+  const rmin = Math.min(r1,r2);
+  if (d <= Math.abs(r1-r2)) return Math.PI*rmin*rmin;  // 内含
+  d = Math.max(d, 1e-9);
+  const d1 = (d*d + r1*r1 - r2*r2)/(2*d);
+  const d2 = d - d1;
+  const a1 = r1*r1*Math.acos(clamp(d1/r1,-1,1)) - d1*Math.sqrt(Math.max(r1*r1-d1*d1,0));
+  const a2 = r2*r2*Math.acos(clamp(d2/r2,-1,1)) - d2*Math.sqrt(Math.max(r2*r2-d2*d2,0));
+  return a1+a2;
+}
+/** 太阳被遮面积比例 [0,1] */
+function obscuration(rSun,rMoon,d){
+  return circleIntersectArea(rSun,rMoon,d)/(Math.PI*rSun*rSun);
+}
+
+/**
+ * 本影锥长度（从遮挡天体中心算起，文档 5.3）。
+ * ⚠️ distSrcToOcc = 光源到「遮挡天体」的距离：
+ *   月球影锥 → 日月距离 (D_SUN − D_MOON)；地球影锥 → 日地距离。
+ */
+function umbraLength(rOcc,rSrc,distSrcToOcc){
+  return rOcc*distSrcToOcc/(rSrc-rOcc);
+}
+/** 本影半角（弧度） */
+function umbraHalfAngle(rOcc,rSrc,distSrcToOcc){
+  return Math.atan((rSrc-rOcc)/distSrcToOcc);
+}
+/** 半影半角（弧度，向外张开） */
+function penumbraHalfAngle(rOcc,rSrc,distSrcToOcc){
+  return Math.atan((rSrc+rOcc)/distSrcToOcc);
+}
+/** 本影截面半径：距遮挡天体中心 x 处 */
+function umbraRadiusAt(rOcc,rSrc,distSrcToOcc,x){
+  return Math.max(0, rOcc - x*Math.tan(umbraHalfAngle(rOcc,rSrc,distSrcToOcc)));
+}
+
+/** 日食分类（文档 5.5）。rS/rM=角半径，d=角距。返回 {type, magnitude} */
+function classifySolar(rS,rM,d){
+  const magnitude = (rS+rM-d)/(2*rS);          // 食分（按直径，天文标准）
+  if (magnitude <= 0)  return {type:'none',    magnitude};
+  // 内含：一个圆面完全在另一个里面。正中（d=0）时必落此分支：
+  // 月亮更大 → 全食；月亮更小 → 环食（即使食分 <1，如平均距离正对 = 0.986 环食）
+  if (d <= Math.abs(rS - rM))
+    return (rM >= rS) ? {type:'total',magnitude} : {type:'annular',magnitude};
+  if (magnitude < 1)   return {type:'partial', magnitude};
+  return {type:'total',magnitude};             // 食分≥1 必然 rM>rS 且已覆盖
+}
+/** 月食分类（文档 5.5）。rMoon=月球角半径，rU/rP=本影/半影角半径，d=月心到影心角距 */
+function classifyLunar(rMoon,rU,rP,d){
+  const magnitude = (rU+rMoon-d)/(2*rMoon);
+  if (d >= rP+rMoon)   return {type:'none',      magnitude};
+  if (d >= rU+rMoon)   return {type:'penumbral', magnitude};
+  if (d >  rU-rMoon)   return {type:'partial',   magnitude};
+  return {type:'total', magnitude};
+}
+
+/**
+ * 天空亮度曲线（文档 5.6）。obsc∈[0,1] → 亮度∈[0,1]。
+ * 非线性：50% 遮挡几乎不变暗，最后 0.6% 断崖式变黑。
+ */
+function skyBrightness(obsc){
+  const lum = clamp(1-obsc, 0, 1);
+  const adapted = Math.pow(lum, 0.18);            // 人眼亮度适应
+  const cliff = smoothstep(0, 0.006, lum);        // 最后 0.6% 的断崖
+  return adapted*(0.03 + 0.97*cliff);
+}
+/** 星星可见度：99% 遮挡时不可见，99.9% 时可见 */
+const starVisibility = skyB => smoothstep(0.35, 0.05, skyB);
+
+/**
+ * 半影区压暗系数（文档 5.7：必须几乎看不出来，0.88–1.0）。
+ * penFrac = 进入半影的深度（0=半影外缘，1=贴住本影边缘）
+ */
+function penumbraDim(penFrac){ return 1 - 0.12*clamp(penFrac,0,1); }
+
+/**
+ * 月球轨道位置（文档 5.8 简化模型）。黄道坐标，z 向上。
+ * theta=轨道相位（相对升交点的辐角），dist=地月距离，
+ * incl=倾角(弧度)，node=升交点黄经(弧度)。
+ */
+function moonPosition(theta,dist,incl,node){
+  const x0 = dist*Math.cos(theta), y0 = dist*Math.sin(theta);
+  const xi = x0, yi = y0*Math.cos(incl), zi = y0*Math.sin(incl);
+  return {
+    x: xi*Math.cos(node)-yi*Math.sin(node),
+    y: xi*Math.sin(node)+yi*Math.cos(node),
+    z: zi,
+  };
+}
+
+/** 地表观察者看到日全食的临界地心距 = 本影锥长 + 地球半径（文档 5.3）*/
+function totalEclipseCriticalDistance(sunDist=D_SUN_MEAN){
+  const dSunMoon = sunDist - D_MOON_MEAN;
+  return umbraLength(R_MOON,R_SUN,dSunMoon) + R_EARTH;
+}
+
+/**
+ * 一年内的日食次数模拟（第5章与自测共用）。
+ * 每个朔望月在"新月"时刻评估月球黄纬：|z| < 地球半径+容差 → 打中。
+ * node0=年初升交点黄经；交点按 18.6 年周期退行。
+ */
+function solarEclipsesInYear(inclDeg, node0=0){
+  let hits = 0;
+  const incl = inclDeg*DEG;
+  const nNewMoons = Math.floor(DAYS_PER_YEAR/SYNODIC_MONTH)+1;
+  for (let k=0;k<nNewMoons;k++){
+    const days = k*SYNODIC_MONTH;
+    if (days > DAYS_PER_YEAR) break;
+    // 新月时月球绝对黄经 = 太阳黄经（从地球看与太阳同向）
+    const sunLon = 2*Math.PI*days/DAYS_PER_YEAR;
+    const node = node0 - 2*Math.PI*days/(NODE_REGRESSION_YEARS*DAYS_PER_YEAR);
+    const u = sunLon - node;                       // 相对交点线的辐角
+    const z = D_MOON_MEAN*Math.sin(u)*Math.sin(incl);
+    if (Math.abs(z) < R_EARTH + 200) hits++;       // 本影扫到地球
+  }
+  return hits;
+}
+
+// ---- 数字格式化 ----
+const fmt = n => Math.round(n).toLocaleString('zh-CN');
+const fmt1 = (n,d=1) => n.toFixed(d);
+
+/**
+ * runSelfTest —— 对照文档 8.1 的全部数值基准。
+ * 挂到 window，控制台随时可跑。启动时自动运行一次。
+ */
+function runSelfTest(){
+  const res = [];
+  const T = (name, got, want, tol, unit='') => {
+    const ok = Math.abs(got-want) <= tol;
+    res.push({name, got, want, tol, ok});
+    return ok;
+  };
+  const D2 = x => x/DEG;   // 弧度→度
+
+  // ① 六个角直径（±0.5%）
+  const ADS = [
+    ['太阳·平均', R_SUN,  D_SUN_MEAN, 0.5331],
+    ['太阳·近日', R_SUN,  D_SUN_PERI, 0.5422],
+    ['太阳·远日', R_SUN,  D_SUN_APO,  0.5244],
+    ['月球·平均', R_MOON, D_MOON_MEAN,0.5179],
+    ['月球·近地', R_MOON, D_MOON_PERI,0.5585],
+    ['月球·远地', R_MOON, D_MOON_APO, 0.4895],
+  ];
+  for (const [n,R,d,want] of ADS)
+    T('角直径 '+n, D2(angularDiameter(R,d)), want, want*0.005, '°');
+
+  // ② 影锥长度（⚠️ 月球的 dist 必须用「日月距离」）
+  const dSunMoon = D_SUN_MEAN - D_MOON_MEAN;           // 149,213,470 km
+  const Lmoon  = umbraLength(R_MOON, R_SUN, dSunMoon);
+  const Learth = umbraLength(R_EARTH, R_SUN, D_SUN_MEAN);
+  T('月球本影锥长', Lmoon, 373408, 200, 'km');
+  T('地球本影锥长', Learth, 1382030, 2000, 'km');
+
+  // ③ 自洽性：二分法解"月球角径 == 太阳角径"的地月距离，应与 L 相差 <1km
+  let lo=300000, hi=500000;
+  for (let i=0;i<200;i++){
+    const m=(lo+hi)/2;
+    if (angRad(R_MOON,m) >= angRad(R_SUN,dSunMoon+m)) lo=m; else hi=m;
+  }
+  T('自洽性(角径相等距离 vs 锥长)', lo, Lmoon, 1, 'km');
+
+  // ④ 地球本影在月距处的半径
+  const rU = R_EARTH*(1 - D_MOON_MEAN/Learth);
+  T('地球本影@月距半径', rU, 4599, 30, 'km');
+
+  // ⑤ 三种地月距离正对时的分类与食分
+  const rS0 = angRad(R_SUN, D_SUN_MEAN);
+  const caseAt = dm => { const rM = angRad(R_MOON,dm); return classifySolar(rS0,rM,0); };
+  const c1 = caseAt(D_MOON_PERI), c2 = caseAt(D_MOON_MEAN), c3 = caseAt(D_MOON_APO);
+  res.push({name:'近地点→日全食', got:c1.type, want:'total', ok:c1.type==='total'});
+  T('近地点食分', c1.magnitude, 1.024, 0.003);
+  res.push({name:'平均距离→日环食', got:c2.type, want:'annular', ok:c2.type==='annular'});
+  T('平均距离食分', c2.magnitude, 0.986, 0.003);
+  res.push({name:'远地点→日环食', got:c3.type, want:'annular', ok:c3.type==='annular'});
+  T('远地点食分', c3.magnitude, 0.959, 0.003);
+
+  // ⑥ 地表观察者临界切换距离（二分：地表处 rM == rS 的地心距）
+  let a=350000, b=410000;
+  for (let i=0;i<200;i++){
+    const m=(a+b)/2;
+    const rMs = angRad(R_MOON, m-R_EARTH);
+    const rSs = angRad(R_SUN, D_SUN_MEAN-m+R_EARTH);
+    if (rMs >= rSs) a=m; else b=m;
+  }
+  T('临界地心距', a, 379779, 1000, 'km');
+
+  // ⑦ 天空亮度表（±0.01）
+  const SKY = [[0,1],[0.5,0.883],[0.9,0.661],[0.99,0.437],[0.997,0.181],[0.999,0.029],[1,0]];
+  for (const [o,w] of SKY) T('天空亮度 obsc='+o, skyBrightness(o), w, 0.012);
+
+  // ⑧ 星星：99% 不可见，99.9% 可见
+  res.push({name:'99%遮挡星星不可见', got:starVisibility(skyBrightness(0.99)), want:'<0.05',
+    ok: starVisibility(skyBrightness(0.99)) < 0.05});
+  res.push({name:'99.9%遮挡星星可见', got:starVisibility(skyBrightness(0.999)), want:'>0.9',
+    ok: starVisibility(skyBrightness(0.999)) > 0.9});
+
+  // ⑨ 远地点环食最深时天空仍亮（≈0.72）
+  const obscApo = obscuration(rS0, angRad(R_MOON,D_MOON_APO), 0);
+  T('远地点环食天空亮度', skyBrightness(obscApo), 0.716, 0.03);
+
+  // ⑩ 半影月食几乎看不出来（压暗 <15%）
+  const dimMid = penumbraDim(0.5);
+  res.push({name:'半影区压暗<15%', got:1-dimMid, want:'<0.15', ok:(1-dimMid) < 0.15 && (1-dimMid) > 0});
+
+  // ⑪ 半角期望值
+  T('月球本影半角', D2(umbraHalfAngle(R_MOON,R_SUN,dSunMoon)), 0.2666, 0.002, '°');
+  T('月球半影半角', D2(penumbraHalfAngle(R_MOON,R_SUN,dSunMoon)), 0.2679, 0.002, '°');
+  T('地球本影半角', D2(umbraHalfAngle(R_EARTH,R_SUN,D_SUN_MEAN)), 0.2641, 0.002, '°');
+  T('地球半影半角', D2(penumbraHalfAngle(R_EARTH,R_SUN,D_SUN_MEAN)), 0.2690, 0.002, '°');
+
+  // ⑫ 倾角：0° → 月月有食；5.145° → 一年 2–5 次（遍历 12 个交点相位取范围，避免相位巧合）
+  const n0 = solarEclipsesInYear(0);
+  const n5s = [];
+  for (let n=0;n<12;n++) n5s.push(solarEclipsesInYear(MOON_INCL, n*Math.PI/6));
+  const n5min = Math.min(...n5s), n5max = Math.max(...n5s);
+  res.push({name:'倾角0°→月月有食', got:n0, want:'>=12', ok:n0>=12});
+  res.push({name:'倾角5.145°→一年2–5次', got:`${n5min}–${n5max}`, want:'2–5', ok:n5min>=2 && n5max<=5});
+
+  // 输出
+  const pass = res.filter(r=>r.ok).length;
+  console.groupCollapsed(`%c🔭 影子剧场 runSelfTest：${pass}/${res.length} 通过`,
+    `color:${pass===res.length?'#5bd6a5':'#ff7b7b'};font-weight:bold;font-size:13px`);
+  for (const r of res){
+    const g = typeof r.got==='number' ? r.got.toFixed(4)+(r.unit||'') : r.got;
+    const w = typeof r.want==='number' ? r.want+(r.unit||'') : r.want;
+    console.log(`${r.ok?'✅':'❌'} ${r.name}  →  ${g}（基准 ${w} ± ${r.tol??''}）`);
+  }
+  console.groupEnd();
+  return {pass, total:res.length, all: res.every(r=>r.ok), res};
+}
+window.runSelfTest = runSelfTest;
+
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 3. 着色器源码 ═══
+   全部程序化生成，不用任何贴图。共用的噪声与两圆相交函数只写一遍。
+   ═══════════════════════════════════════════════════════════════ */
+
+// ---- 共用：3D simplex noise（Ashima/webgl-noise 经典实现）+ fbm ----
+const GLSL_NOISE = /* glsl */`
+vec3 mod289(vec3 x){return x - floor(x*(1.0/289.0))*289.0;}
+vec4 mod289(vec4 x){return x - floor(x*(1.0/289.0))*289.0;}
+vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314*r;}
+float snoise(vec3 v){
+  const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+  vec3 i  = floor(v + dot(v, C.yyy));
+  vec3 x0 = v - i + dot(i, C.xxx);
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min(g.xyz, l.zxy);
+  vec3 i2 = max(g.xyz, l.zxy);
+  vec3 x1 = x0 - i1 + C.xxx;
+  vec3 x2 = x0 - i2 + C.yyy;
+  vec3 x3 = x0 - D.yyy;
+  i = mod289(i);
+  vec4 p = permute(permute(permute(
+      i.z + vec4(0.0, i1.z, i2.z, 1.0))
+    + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+    + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+  float n_ = 0.142857142857;
+  vec3 ns = n_ * D.wyz - D.xzx;
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_);
+  vec4 x = x_ * ns.x + ns.yyyy;
+  vec4 y = y_ * ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+  vec4 b0 = vec4(x.xy, y.xy);
+  vec4 b1 = vec4(x.zw, y.zw);
+  vec4 s0 = floor(b0)*2.0 + 1.0;
+  vec4 s1 = floor(b1)*2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+  vec3 p0 = vec3(a0.xy, h.x);
+  vec3 p1 = vec3(a0.zw, h.y);
+  vec3 p2 = vec3(a1.xy, h.z);
+  vec3 p3 = vec3(a1.zw, h.w);
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+}
+float fbm(vec3 p){
+  float f = 0.0, a = 0.5;
+  for(int i=0;i<5;i++){ f += a*snoise(p); p *= 2.02; a *= 0.5; }
+  return f;
+}
+float hash21(vec2 p){
+  p = fract(p*vec2(234.34, 435.345));
+  p += dot(p, p+34.23);
+  return fract(p.x*p.y);
+}
+`;
+
+// ---- 共用：两圆相交面积（文档 5.4 的 GLSL 版，与 JS 版逐字一致） ----
+const GLSL_CONE = /* glsl */`
+uniform vec3  uConeBase;      // 锥底中心（遮挡天体中心，渲染坐标）
+uniform vec3  uConeAxis;      // 锥轴，背离光源，单位向量
+uniform float uConeBaseR;     // 底半径 = 遮挡天体渲染半径
+uniform float uConeUmbraLen;  // 本影锥长
+uniform float uConePenLen;    // 半影锥长
+uniform float uConePenTipR;   // 半影远端半径（向外张开）
+// 返回该点被影锥遮住的程度：1 = 本影内，0 = 影外，中间 = 半影过渡。
+// 与 placeCone() 摆出来的那个锥体是同一套几何，所以影斑边界严格贴合锥面。
+float coneShade(vec3 P){
+  vec3 rel = P - uConeBase;
+  float t = dot(rel, uConeAxis);
+  if (t <= 0.0 || uConeUmbraLen <= 0.0) return 0.0;   // 在遮挡天体前方，照不到影子
+  float rho = length(rel - uConeAxis*t);
+  float rU = max(uConeBaseR*(1.0 - t/uConeUmbraLen), 0.0);
+  float rP = mix(uConeBaseR, uConePenTipR, clamp(t/max(uConePenLen,1e-4), 0.0, 1.0));
+  return 1.0 - smoothstep(rU, max(rP, rU + 1e-4), rho);
+}`;
+
+const GLSL_CIRC = /* glsl */`
+#define TAU 6.283185307179586
+float circleIntersectArea(float r1, float r2, float d){
+  if (d >= r1 + r2) return 0.0;                    // 相离
+  float rmin = min(r1, r2);
+  if (d <= abs(r1 - r2)) return 3.141592653589793 * rmin * rmin;  // 内含
+  d = max(d, 1e-6);
+  float d1 = (d*d + r1*r1 - r2*r2) / (2.0 * d);
+  float d2 = d - d1;
+  float a1 = r1*r1 * acos(clamp(d1/r1, -1.0, 1.0)) - d1 * sqrt(max(r1*r1 - d1*d1, 0.0));
+  float a2 = r2*r2 * acos(clamp(d2/r2, -1.0, 1.0)) - d2 * sqrt(max(r2*r2 - d2*d2, 0.0));
+  return a1 + a2;
+}
+float obscArea(float rSun, float rMoon, float d){
+  return circleIntersectArea(rSun, rMoon, d) / (3.141592653589793 * rSun * rSun);
+}
+`;
+
+// ---- 太阳：多层 FBM 湍流，中心白 → 边缘橙 ----
+const SUN_VERT = /* glsl */`
+varying vec3 vN; varying vec3 vPos;
+void main(){
+  vN = normalize(normalMatrix * normal);
+  vPos = position;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+const SUN_FRAG = /* glsl */`
+uniform float uTime;
+varying vec3 vN; varying vec3 vPos;
+${GLSL_NOISE}
+void main(){
+  vec3 n = normalize(vPos);
+  float t = uTime * 0.05;
+  // 多层湍流随时间流动
+  float turb = fbm(n*3.0 + vec3(t, t*0.7, -t*0.4));
+  turb += 0.5*fbm(n*7.0 - vec3(t*1.3, -t, t*0.8));
+  turb = turb*0.5 + 0.5;
+  // 临边昏暗：正面看更亮更白，边缘更橙更暗
+  float facing = clamp(dot(normalize(vN), vec3(0.0, 0.0, 1.0)), 0.0, 1.0);
+  vec3 white = vec3(1.0, 0.96, 0.86);
+  vec3 gold  = vec3(1.0, 0.71, 0.28);
+  vec3 deep  = vec3(0.95, 0.45, 0.12);
+  vec3 col = mix(gold, white, smoothstep(0.25, 0.95, facing));
+  col = mix(col, deep, (1.0-facing)*0.55);
+  col *= 0.86 + 0.30*turb;
+  // 米粒组织亮斑
+  col += white * smoothstep(0.72, 0.95, turb) * 0.5;
+  gl_FragColor = vec4(col * 1.35, 1.0);
+}`;
+
+// ---- 地球：噪声大陆 + 海洋高光 + 夜灯 + 地表食分解析着色（文档 6.4） ----
+// 关键：影子不是贴花，而是每个片元实时算出的太阳-月亮遮挡比例。
+const EARTH_VERT = /* glsl */`
+varying vec3 vN; varying vec3 vW; varying vec3 vLocal;
+void main(){
+  vN = normalize(mat3(modelMatrix) * normal);
+  vW = (modelMatrix * vec4(position, 1.0)).xyz;
+  vLocal = position;
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}`;
+const EARTH_FRAG = /* glsl */`
+uniform vec3  uEarthCenter;      // 渲染坐标：地心
+uniform vec3  uSunDirW;          // 渲染坐标：地心→太阳 方向（单位化）
+uniform vec3  uMoonDirW;         // 渲染坐标：地心→月球 方向
+uniform float uSunDistKm;        // 物理 km
+uniform float uMoonDistKm;       // 物理 km
+uniform float uEclipseOn;        // 1=开启地表食分着色
+uniform float uTime;
+varying vec3 vN; varying vec3 vW; varying vec3 vLocal;
+${GLSL_NOISE}
+${GLSL_CIRC}
+${GLSL_CONE}
+const float R_EARTH = 6371.0;
+const float R_SUN   = 696000.0;
+const float R_MOON  = 1737.4;
+void main(){
+  vec3 n = normalize(vLocal);
+  // —— 大陆掩膜：3D 噪声阈值化 ——
+  float cont = fbm(n*2.1 + vec3(3.7));
+  float detail = fbm(n*6.5 + vec3(9.2))*0.35;
+  float land = smoothstep(0.02, 0.14, cont + detail*0.4);
+  float height = clamp(cont + detail, -1.0, 1.0)*0.5 + 0.5;
+  vec3 ocean = vec3(0.110, 0.310, 0.561);
+  vec3 landC = mix(vec3(0.247, 0.478, 0.290), vec3(0.541, 0.478, 0.306),
+                   smoothstep(0.45, 0.8, height));
+  // 极冰
+  float ice = smoothstep(0.82, 0.9, abs(n.z) + detail*0.25);
+  vec3 surface = mix(ocean, landC, land);
+  surface = mix(surface, vec3(0.9, 0.94, 0.98), ice);
+
+  // —— 光照 ——
+  vec3 N = normalize(vN);
+  vec3 sunDir = normalize(uSunDirW);
+  float ndl = dot(N, sunDir);
+  float day = smoothstep(-0.12, 0.22, ndl);
+  vec3 col = surface * (0.06 + 1.15*day);
+  // 海洋镜面高光
+  vec3 viewDir = normalize(cameraPosition - vW);
+  float spec = pow(max(dot(reflect(-sunDir, N), viewDir), 0.0), 42.0);
+  col += vec3(1.0, 0.95, 0.8) * spec * (1.0-land) * day * 0.7;
+  // 夜面城市灯光（噪声阈值化的暖黄点，只在陆地）
+  float cityNoise = fbm(n*14.0 + vec3(1.2));
+  float cities = smoothstep(0.42, 0.5, cityNoise) * land * (1.0-ice);
+  col += vec3(1.0, 0.78, 0.42) * cities * (1.0-day) * 0.55;
+
+  // —— 地表食分着色（文档 6.4）——
+  // 片元方向 = 渲染几何方向；距离 = 真实 km。方向来自渲染，尺度来自物理。
+  // 地表影斑完全由「月球影锥」的渲染几何决定：与画面上那个锥体同一套参数，
+  // 所以影斑边界永远贴着锥面走，不会出现"锥子在这儿、影子在那儿"。
+  // 深浅（本影多黑、半影多淡）仍是连续的几何过渡，食分/天空亮度另由物理量给出。
+  if (uEclipseOn > 0.5) {
+    float shade = coneShade(vW) * day;      // 只在昼面出现
+    col *= mix(1.0, 0.05, shade);
+    col += vec3(0.05, 0.03, 0.12) * smoothstep(0.85, 1.0, shade) * 0.4; // 本影区一点冷色
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ---- 云层：独立球（半径×1.01），噪声 alpha，缓慢自转 ----
+const CLOUD_FRAG = /* glsl */`
+uniform float uTime;
+uniform vec3  uSunDirW;
+uniform float uDim;              // 保留接口，正常为 1（不再做全局压暗）
+varying vec3 vN; varying vec3 vW; varying vec3 vLocal;
+${GLSL_NOISE}
+${GLSL_CONE}
+void main(){
+  vec3 n = normalize(vLocal);
+  float c = fbm(n*3.4 + vec3(uTime*0.004, 0.0, uTime*0.0026));
+  c += 0.4*fbm(n*8.0 - vec3(uTime*0.006));
+  float alpha = smoothstep(0.18, 0.62, c);
+  float day = smoothstep(-0.15, 0.25, dot(normalize(vN), normalize(uSunDirW)));
+  // 云也要落在影子里：与地面同一个 coneShade，而不是整片云一起变暗。
+  // 此前这里用的是"月球正对太阳"(角距写死 0)算出的全局系数，
+  // 结果日食期间全球的云一起暗 80% —— 物理上只有影子扫过的地方该暗。
+  float cloudShade = coneShade(vW) * day;
+  vec3 col = vec3(1.0) * (0.12 + 1.05*day) * uDim * mix(1.0, 0.08, cloudShade);
+  gl_FragColor = vec4(col, alpha*0.85);
+}`;
+
+// ---- 大气辉光：背面渲染 Fresnel 球（半径×1.05）；uBlood=1 时变橙红环（月球上看地球） ----
+const ATMO_FRAG = /* glsl */`
+uniform vec3  uSunDirW;
+uniform float uBlood;            // 0=蓝色辉光 1=血月红环（站在月亮上回看）
+uniform float uBoost;
+varying vec3 vN; varying vec3 vW;
+void main(){
+  vec3 N = normalize(vN);
+  vec3 V = normalize(cameraPosition - vW);
+  float fres = pow(1.0 - abs(dot(N, V)), 2.2);
+  float sunSide = 0.35 + 0.65*clamp(dot(N, normalize(uSunDirW))*0.5+0.5, 0.0, 1.0);
+  vec3 blue = vec3(0.357, 0.639, 0.878);
+  vec3 red  = vec3(1.0, 0.42, 0.14);
+  vec3 col = mix(blue, red, uBlood) * (uBlood > 0.5 ? 2.2 : 1.0);
+  float a = fres * sunSide * (0.9 + uBoost) * mix(0.75, 1.0, uBlood);
+  gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+}`;
+
+// ---- 月球：月海暗斑 + 陨石坑法线扰动 + 月食血月着色（文档 5.7） ----
+const MOON_FRAG = /* glsl */`
+uniform vec3  uSunDirW;          // 渲染坐标：太阳方向
+uniform vec3  uMoonCenter;       // 渲染坐标：月心
+uniform vec3  uMoonDirW;         // 地心→月球 方向（单位化）
+uniform float uMoonDistKm;
+uniform float uSunDistKm;
+uniform float uEclipseOn;        // 1=开启月食着色
+varying vec3 vN; varying vec3 vW; varying vec3 vLocal;
+${GLSL_NOISE}
+${GLSL_CIRC}
+${GLSL_CONE}
+const float R_EARTH = 6371.0;
+const float R_SUN   = 696000.0;
+const float R_MOON  = 1737.4;
+void main(){
+  vec3 n = normalize(vLocal);
+  // 月海（大片暗斑）
+  float mare = smoothstep(0.08, 0.42, fbm(n*1.7 + vec3(5.0)));
+  vec3 hi = vec3(0.784, 0.769, 0.737);
+  vec3 lo = vec3(0.478, 0.467, 0.439);
+  vec3 base = mix(hi, lo, mare*0.85);
+  // 陨石坑：高频噪声做凹坑感
+  float cr = fbm(n*9.0 + vec3(2.0));
+  base *= 1.0 - smoothstep(0.55, 0.85, cr)*0.28;
+  base *= 0.92 + 0.16*fbm(n*22.0);
+
+  // 法线扰动 → 粗糙光照
+  // 高度场用「局部」坐标采样（凹凸图案跟着月面自转），
+  // 但扰动必须加在「世界」空间法线上 —— fragment shader 里拿不到 modelMatrix
+  // （Three.js 只往 vertex shader 注入它），所以在世界空间另建一组切向量。
+  float e = 0.02;
+  float h0 = fbm(n*9.0);
+  vec3 t1 = normalize(cross(n, vec3(0.0, 0.0, 1.0) + 1e-4));
+  vec3 t2 = normalize(cross(n, t1));
+  float h1 = fbm(normalize(n + t1*e)*9.0);
+  float h2 = fbm(normalize(n + t2*e)*9.0);
+  vec3 Nw = normalize(vN);
+  // 选一个与 Nw 不平行的参考轴，避免 cross 退化成零向量（两极处会 NaN）
+  vec3 upRef = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), step(0.9, abs(Nw.z)));
+  vec3 w1 = normalize(cross(Nw, upRef));
+  vec3 w2 = normalize(cross(Nw, w1));
+  vec3 N = normalize(Nw + (w1*(h0-h1) + w2*(h0-h2))*2.2);
+
+  vec3 sunDir = normalize(uSunDirW);
+  float ndl = max(dot(normalize(N), sunDir), 0.0);
+  vec3 col = base * (0.03 + 1.25*ndl);
+
+  // —— 月食着色：地球挡住太阳 → 血月 ——
+  if (uEclipseOn > 0.5) {
+    // 月面明暗完全由「地球影锥」的渲染几何决定 —— 与画面上那个锥体同一套参数。
+    // 月球走进锥里的那部分才变暗变红，没走进去的部分照旧是亮的。
+    float sh = coneShade(vW);                         // 1=本影内 0=影外
+    // 半影：几乎看不出来的压暗（<15%）
+    float dim = 1.0 - 0.12*smoothstep(0.02, 0.75, sh);
+    // 本影：清晰可见的红色，不是黑色
+    float inUmbra = smoothstep(0.55, 0.92, sh);
+    float t = clamp((sh - 0.55)/0.45, 0.0, 1.0);      // 进入本影的深度 → 血月由橙到暗红
+    vec3 EDGE   = vec3(0.90, 0.45, 0.18);
+    vec3 MID    = vec3(0.76, 0.27, 0.06);
+    vec3 CENTER = vec3(0.42, 0.11, 0.03);
+    vec3 blood = t < 0.5 ? mix(EDGE, MID, t*2.0) : mix(MID, CENTER, (t-0.5)*2.0);
+    col = col * dim * (1.0 - inUmbra) + blood * (0.30 + 0.12*ndl) * inUmbra;
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ---- 影锥：Fresnel 边缘增强的半透明体积（文档 4.3 / 6.4） ----
+const CONE_VERT = /* glsl */`
+uniform float uTipRatio;            // 远端半径/底半径：0=收敛成尖(本影)，>1=向外张开(半影)
+varying vec3 vN; varying vec3 vW; varying float vT;
+void main(){
+  vT = position.y;                  // 单位锥体：0=靠近天体端，1=远端
+  // 几何是等径圆柱，在这里按 uTipRatio 线性变形。
+  // 好处：同一份几何能精确匹配任意物理张开率，不必把倍数写死在几何里。
+  float r = mix(1.0, uTipRatio, vT);
+  vec3 p = vec3(position.x * r, position.y, position.z * r);
+  vN = normalize(mat3(modelMatrix) * normal);
+  vW = (modelMatrix * vec4(p, 1.0)).xyz;
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p, 1.0);
+}`;
+const CONE_FRAG = /* glsl */`
+uniform vec3  uColor;
+uniform float uBaseAlpha;
+varying vec3 vN; varying vec3 vW; varying float vT;
+void main(){
+  vec3 V = normalize(cameraPosition - vW);
+  float fres = pow(1.0 - abs(dot(normalize(vN), V)), 2.0);
+  float alpha = uBaseAlpha * (0.35 + 0.65*fres);
+  alpha *= smoothstep(1.0, 0.72, vT);      // 远端渐隐，避免生硬圆边
+  gl_FragColor = vec4(uColor, alpha);
+}`;
+
+// ---- 「小朋友的眼睛」：2D 全屏片元着色器（文档 4.4） ----
+// 不用真 3D 相机：vUv 直接映射到角度坐标，视场可变焦。
+// 模式：0=日食天空  1=月食时的月面  2=站在月亮上回看地球
+const EYE_VERT = /* glsl */`
+varying vec2 vUv;
+void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const EYE_FRAG = /* glsl */`
+uniform float uMode;
+uniform float uFovHalf;          // 半视场角（弧度）
+uniform float uAspect;          // 视口宽/高，用于校正非方形视口的角度映射
+uniform float uTime;
+uniform float uSunAngR;          // 太阳角半径（弧度）
+uniform float uMoonAngR;         // 月亮角半径（弧度）
+uniform vec2  uMoonOff;          // 月心相对日心的角偏移（弧度）
+uniform float uObsc;             // 太阳被遮比例 [0,1]
+uniform float uSkyB;             // 天空亮度 [0,1]
+uniform float uStarVis;          // 星星可见度 [0,1]
+// 月食模式（1）用：影心相对月心的角偏移与半径
+uniform vec2  uShadowOff;
+uniform float uUmbraAngR;
+uniform float uPenAngR;
+// 地月视角模式（2）用：地球角半径
+uniform float uEarthAngR;
+uniform vec3  uSunLocal;      // 太阳方向（观察者坐标系：x=right, y=up, z=朝向观察者）
+uniform float uInUmbra;       // 月球陷在本影里的程度 0..1
+// 把 PIP 的片元反投影回月球表面的 3D 点，好调用与主视图同一个 coneShade()。
+// 这样"小朋友看到的月面明暗"和"3D 里月球被影锥切出的明暗"是同一次计算，
+// 不再是两套各自为政的算法。
+uniform vec3  uMoonCenterR;   // 月心（渲染坐标）
+uniform float uMoonRenderR;   // 月球渲染半径
+uniform vec3  uBasisRight;    // 观察者屏幕基 —— right
+uniform vec3  uBasisUp;       // —— up
+uniform vec3  uBasisToObs;    // —— 朝向观察者
+
+// 圆面上的一点 → 球面法线 → 被太阳照亮的程度。月相与地球相位共用这一个。
+float phaseLit(vec2 uv){
+  float w = sqrt(max(1.0 - dot(uv, uv), 0.0));
+  return max(dot(vec3(uv, w), normalize(uSunLocal)), 0.0);
+}
+// 每弧度对应多少屏幕像素。星点必须按「像素」定粗细：
+// 固定角半径在 272px 的 PIP 里约 4px 正好，放大到全屏就变成十几 px 的糊斑。
+uniform float uPxPerRad;
+varying vec2 vUv;
+${GLSL_NOISE}
+${GLSL_CIRC}
+${GLSL_CONE}
+
+vec3 starField(vec2 ang, float vis){
+  if (vis <= 0.001) return vec3(0.0);
+  vec3 sum = vec3(0.0);
+  for (int i=0;i<2;i++){
+    float sc = (i==0) ? 90.0 : 220.0;
+    vec2 g = floor(ang*sc);
+    for (int dx=0; dx<=1; dx++)
+    for (int dy=0; dy<=1; dy++){
+      vec2 cell = g + vec2(float(dx), float(dy));
+      float h = hash21(cell + float(i)*77.7);
+      if (h > 0.965){
+        vec2 center = (cell + vec2(hash21(cell+1.3), hash21(cell+2.7))) / sc;
+        float d = length(ang - center);
+        float b = pow((h-0.965)/0.035, 2.0);
+        float rStar = 2.2 / max(uPxPerRad, 1.0);        // ≈2.2px，与视口大小无关
+        float s = 1.0 - smoothstep(0.0, rStar, d);
+        vec3 tint = mix(vec3(0.75,0.82,1.0), vec3(1.0,0.9,0.75), hash21(cell+5.1));
+        sum += tint * s * b;
+      }
+    }
+  }
+  return sum * vis;
+}
+
+void main(){
+  vec2 ang = vec2((vUv.x - 0.5) * 2.0 * uFovHalf * uAspect, (vUv.y - 0.5) * 2.0 * uFovHalf);   // 片元对应的天空角坐标（x 含宽高比校正）
+  vec3 col = vec3(0.0);
+
+  if (uMode < 0.5) {
+    // ═══ 模式 0：日食天空 ═══
+    // 1) 天空底色（非线性亮度曲线已由 CPU 算好）
+    vec3 daySky = vec3(0.45, 0.62, 0.92);
+    vec3 nightSky = vec3(0.020, 0.027, 0.075);
+    col = mix(nightSky, daySky, clamp(uSkyB*1.15, 0.0, 1.0));
+    // 2) 星星
+    col += starField(ang, uStarVis);
+    // 3) 地平线一圈橙色（仅全食时，那是远处还在半影里的地方）
+    float totality = smoothstep(0.985, 0.999, uObsc);
+    float horizon = 1.0 - smoothstep(-1.0, -0.35, (vUv.y - 0.5)*2.0);
+    col += vec3(1.0, 0.48, 0.16) * horizon * totality * 0.55;
+    // 4) 日冕（遮挡≥99% 淡入，径向流动噪声）
+    vec2 dSun = ang;
+    float rSun = length(dSun);
+    float coronaIn = smoothstep(0.99, 0.9995, uObsc);
+    if (coronaIn > 0.001){
+      float a = atan(dSun.y, dSun.x);
+      float rr = rSun / max(uSunAngR, 1e-6);
+      float stream = fbm(vec3(cos(a)*2.0, sin(a)*2.0, uTime*0.06 + rr*1.5));
+      float fall = exp(-(rr - 1.0) * 2.6);
+      float rays = 0.75 + 0.5*stream;
+      float corona = fall * rays * smoothstep(1.0, 1.02, rr);
+      col += vec3(1.0, 0.97, 0.90) * corona * coronaIn * 1.15;
+    }
+    // 5) 太阳：盘外大气眩光 + 锐利圆盘（白心→金边，含临边昏暗）
+    //    眩光是"刺眼"的来源，随遮挡减弱：全食时必须干净消失，否则盖掉日冕。
+    float rNorm = rSun / max(uSunAngR, 1e-6);            // 1.0 = 圆盘边缘
+    if (rNorm > 1.0){
+      float glow = exp(-(rNorm - 1.0) * 3.2) * (1.0 - uObsc);
+      col += vec3(1.0, 0.86, 0.62) * glow * 0.5;
+    }
+    // 圆盘遮罩单独算，避免"越靠边越暗"把金边一起吃掉
+    float disc = 1.0 - smoothstep(uSunAngR*0.99, uSunAngR*1.01, rSun);
+    if (disc > 0.0){
+      float t = clamp(rNorm, 0.0, 1.0);
+      float limb = 1.0 - 0.35*pow(t, 3.0);               // 临边昏暗
+      vec3 sunCol = mix(vec3(1.0, 0.98, 0.92), vec3(1.0, 0.76, 0.34), pow(t, 2.5));
+      col += sunCol * disc * limb * 2.8;
+    }
+    // 6) 月亮圆面（极暗，边缘锯齿表现月面山脉）
+    vec2 dMoon = ang - uMoonOff;
+    float rMoon = length(dMoon);
+    float ma = atan(dMoon.y, dMoon.x);
+    float mtn = 1.0 + 0.012*snoise(vec3(cos(ma)*6.0, sin(ma)*6.0, 3.3));
+    float moonEdge = 1.0 - smoothstep(uMoonAngR*mtn*0.99, uMoonAngR*mtn, rMoon);
+    if (moonEdge > 0.0){
+      vec3 moonCol = vec3(0.012, 0.014, 0.030);        // 几乎全黑 + 一点地球反照
+      moonCol += vec3(0.03, 0.035, 0.06) * (1.0 - uObsc*0.7);
+      col = mix(col, moonCol, moonEdge);
+    }
+    // 7) 贝利珠 / 钻石环（食既/生光前后 ±1.5% 窗口）
+    float beadWin = smoothstep(0.970, 0.985, uObsc) * (1.0 - smoothstep(0.9995, 1.0, uObsc));
+    if (beadWin > 0.001){
+      for (int i=0;i<3;i++){
+        float ba = float(i)*2.1 + 0.7;
+        vec2 bp = uMoonOff + vec2(cos(ba), sin(ba)) * uMoonAngR*mtn;
+        float bd = length(ang - bp);
+        float bead = 1.0 - smoothstep(0.0, uMoonAngR*0.055, bd);
+        float first = (i==0) ? 1.6 : 0.5;              // 第一颗更亮 → 钻石环
+        col += vec3(1.0, 0.98, 0.9) * bead * beadWin * 3.2 * first;
+      }
+    }
+
+  } else if (uMode < 1.5) {
+    // ═══ 模式 1：月食时的月面（从地球看月亮） ═══
+    col = vec3(0.016, 0.020, 0.05);
+    col += starField(ang, 0.8);
+    float r = length(ang);
+    float edge = 1.0 - smoothstep(uMoonAngR*0.99, uMoonAngR, r);
+    if (edge > 0.0){
+      // 月相：月面法线与太阳方向的夹角 —— 天上看到的圆缺就是这么来的，
+      // 不再永远画成满月。地照(earthshine)给暗面留一点微光。
+      vec3 tex = vec3(0.85, 0.83, 0.78) * (0.9 + 0.1*snoise(vec3(ang*260.0, 1.0)));
+      vec3 lit = tex * (0.045 + 0.955*phaseLit(ang/max(uMoonAngR,1e-6)));
+      // 地影：把这个片元反投影回月球表面的 3D 点，交给主视图同一个 coneShade()。
+      // 月亮走进锥里的部分才变暗变红，没走进去的照旧亮 —— 与 3D 严格同步。
+      vec2 uvm = ang / max(uMoonAngR, 1e-6);
+      float wm = sqrt(max(1.0 - dot(uvm, uvm), 0.0));
+      vec3 Pm = uMoonCenterR + (uBasisRight*uvm.x + uBasisUp*uvm.y + uBasisToObs*wm) * uMoonRenderR;
+      float sh = coneShade(Pm);
+      float inUmbra = smoothstep(0.55, 0.92, sh);
+      float inPen   = smoothstep(0.02, 0.35, sh);
+      float t = clamp((sh - 0.55)/0.45, 0.0, 1.0);
+      vec3 EDGE = vec3(0.90,0.45,0.18), MID = vec3(0.76,0.27,0.06), CEN = vec3(0.42,0.11,0.03);
+      vec3 blood = t > 0.5 ? mix(MID, CEN, (t-0.5)*2.0) : mix(EDGE, MID, t*2.0);
+      vec3 moonCol = lit;
+      moonCol *= 1.0 - 0.10*inPen*(1.0-inUmbra);       // 半影：压暗 <10%
+      // 真实亮度只有满月的万分之一，但那样在屏幕上就是一团黑 ——
+      // 提到能看清铜橙色为止（文档 5.7 允许 0.12–0.35，取偏亮端保证 PIP 里也醒目）。
+      moonCol = mix(moonCol, blood*0.85, inUmbra);
+      col = mix(col, moonCol, edge);
+    }
+
+  } else {
+    // ═══ 模式 2：站在月亮上，回看地球 ═══
+    col = vec3(0.012, 0.015, 0.04);
+    col += starField(ang, 1.0);
+    float r = length(ang);
+    float edge = 1.0 - smoothstep(uEarthAngR*0.995, uEarthAngR, r);
+    // 地球也有相位：从月亮上看，地球同样有"圆缺"。
+    // 只有月球真的走进地影时，地球才整个背光成黑盘 —— 那时才该出现那圈日出日落。
+    float lit = phaseLit(ang/max(uEarthAngR,1e-6));
+    vec3 dayFace = mix(vec3(0.05,0.22,0.42), vec3(0.42,0.62,0.82), lit);   // 海洋蓝 + 云
+    vec3 nightFace = vec3(0.010, 0.013, 0.028);
+    vec3 earthCol = mix(nightFace, dayFace, smoothstep(0.0, 0.12, lit));
+    col = mix(col, earthCol, edge);
+    // 大气红环：强度跟着"月球陷进本影多深"走
+    float ring = exp(-abs(r - uEarthAngR*1.015)/(uEarthAngR*0.055));
+    float flick = 0.85 + 0.3*fbm(vec3(cos(atan(ang.y,ang.x))*3.0, sin(atan(ang.y,ang.x))*3.0, uTime*0.05));
+    col += vec3(1.0, 0.38, 0.10) * ring * flick * 1.5 * uInUmbra;
+    col += vec3(1.0, 0.55, 0.20) * exp(-abs(r-uEarthAngR)/(uEarthAngR*0.22)) * 0.35 * uInUmbra;
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ---- 台灯墙（第2章）：软影 = 从墙面片元看「灯盘被球挡了多少」 ----
+const WALL_FRAG = /* glsl */`
+uniform vec3 uLampP; uniform float uLampR;
+uniform vec3 uBallP; uniform float uBallR;
+varying vec3 vN; varying vec3 vW;
+${GLSL_CIRC}
+void main(){
+  vec3 toLamp = uLampP - vW; float dL = length(toLamp);
+  vec3 toBall = uBallP - vW; float dB = length(toBall);
+  float rL = atan(uLampR, dL);        // 灯盘角半径
+  float rB = atan(uBallR, dB);        // 小球角半径
+  float sep = acos(clamp(dot(toLamp/dL, toBall/dB), -1.0, 1.0));
+  float obsc = obscArea(rL, rB, sep); // 灯被球挡住的比例
+  float facing = max(dot(normalize(vN), toLamp/dL), 0.12);
+  float fall = 1.0 / (1.0 + dL*0.012);
+  vec3 warm = vec3(1.0, 0.86, 0.66);
+  // 系数必须让墙落在 ~0.6 而不是超过 1.0：过曝的话本影/半影的灰度层次会被一起压成白，
+  // 而"影子分两层"正是本章要教的东西（顺带也不会触发 bloom 把边缘糊掉）。
+  vec3 col = warm * (1.0 - obsc) * facing * fall * 0.8;
+  col += vec3(0.05, 0.05, 0.09);      // 环境光
+  gl_FragColor = vec4(col, 1.0);
+}`;
+const WALL_VERT = /* glsl */`
+varying vec3 vN; varying vec3 vW;
+void main(){
+  vN = normalize(mat3(modelMatrix) * normal);
+  vW = (modelMatrix * vec4(position, 1.0)).xyz;
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}`;
+
+// ---- 通用基础顶点着色器（月球/云/大气共用） ----
+const BASIC_VERT = /* glsl */`
+varying vec3 vN; varying vec3 vW; varying vec3 vLocal;
+void main(){
+  vN = normalize(mat3(modelMatrix) * normal);
+  vW = (modelMatrix * vec4(position, 1.0)).xyz;
+  vLocal = position;
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}`;
+
+// ---- 后期：暗角（文档 4.6，强度 0.25） ----
+const VIGNETTE_FRAG = /* glsl */`
+uniform sampler2D tDiffuse;
+uniform float uStrength;
+varying vec2 vUv;
+void main(){
+  vec4 c = texture2D(tDiffuse, vUv);
+  vec2 q = vUv - 0.5;
+  float v = 1.0 - smoothstep(0.25, 0.85, length(q)*1.35);
+  c.rgb *= mix(1.0, v, uStrength);
+  gl_FragColor = c;
+}`;
+const VIGNETTE_VERT = /* glsl */`
+varying vec2 vUv;
+void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 4. 场景搭建 ═══
+   渲染器 / 星空 / 太阳 / 地球组 / 月球 / 影锥 / 台灯场景 / 第5章场景 / 后期
+   几何体全部只创建一次，之后只改 transform 与 uniform。
+   ═══════════════════════════════════════════════════════════════ */
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ---- 渲染器 ----
+const canvas = document.getElementById('gl');
+let perfMode = false;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, powerPreference:'high-performance' });
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);       // 透出 CSS 的深空渐变背景
+renderer.autoClear = false;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 3000);
+camera.position.set(4, 14, 34);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enablePan = false;
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minPolarAngle = 0.12;
+controls.maxPolarAngle = Math.PI - 0.12;
+controls.autoRotate = false;               // 文档明令禁止自动旋转
+controls.minDistance = 4;
+controls.maxDistance = 220;
+
+// 坐标约定：three 为 y-up。物理公式（文档 5.8，z-up）→ three：
+// three(x, y, z) = phys(x, z, -y)，保持右手系与方位关系。
+function v3km(p){ return new THREE.Vector3(p.x, p.z, -p.y); }
+function dir3(x, y, z){ return new THREE.Vector3(x, z, -y).normalize(); }
+
+// ---- 相机缓动（章节切换 1.2s easeInOutCubic，禁止瞬移） ----
+const camTween = { active:false, t:0, dur:1.2, fromP:new THREE.Vector3(), toP:new THREE.Vector3(),
+                   fromT:new THREE.Vector3(), toT:new THREE.Vector3() };
+function tweenCamera(pos, target, dur=1.2){
+  camTween.fromP.copy(camera.position); camTween.toP.copy(pos);
+  camTween.fromT.copy(controls.target); camTween.toT.copy(target);
+  camTween.t = 0; camTween.dur = dur; camTween.active = true;
+  controls.enabled = false;
+}
+function updateCamTween(dt){
+  if (!camTween.active) return;
+  camTween.t += dt / camTween.dur;
+  const k = easeInOutCubic(Math.min(camTween.t, 1));
+  camera.position.lerpVectors(camTween.fromP, camTween.toP, k);
+  controls.target.lerpVectors(camTween.fromT, camTween.toT, k);
+  if (camTween.t >= 1){ camTween.active = false; controls.enabled = true; }
+}
+
+// ---- 星空：6500 个 Points，幂律亮度 + 轻微色温变化（单个 draw call） ----
+const stars = (() => {
+  const N = 6500;
+  const pos = new Float32Array(N*3), col = new Float32Array(N*3);
+  for (let i=0;i<N;i++){
+    const u = Math.random()*2-1, ph = Math.random()*Math.PI*2, r = Math.sqrt(1-u*u);
+    pos[i*3]   = r*Math.cos(ph)*STAR_SPHERE_R;
+    pos[i*3+1] = u*STAR_SPHERE_R;
+    pos[i*3+2] = r*Math.sin(ph)*STAR_SPHERE_R;
+    const b = Math.pow(Math.random(), 3.2)*1.1 + 0.05;
+    const warm = Math.random();
+    col[i*3]   = b*(warm<0.22 ? 1.0 : warm<0.8 ? 0.92 : 0.75);
+    col[i*3+1] = b*0.9;
+    col[i*3+2] = b*(warm<0.22 ? 0.72 : warm<0.8 ? 0.98 : 1.0);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const m = new THREE.PointsMaterial({ size:1.7, sizeAttenuation:false, vertexColors:true,
+    transparent:true, depthWrite:false });
+  const pts = new THREE.Points(g, m);
+  pts.renderOrder = -10;
+  return pts;
+})();
+scene.add(stars);
+
+// ---- 光晕贴图（程序化 CanvasTexture） ----
+function makeGlowTexture(inner, outer){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const cx = cv.getContext('2d');
+  const g = cx.createRadialGradient(128,128,0, 128,128,128);
+  g.addColorStop(0, inner); g.addColorStop(0.25, outer); g.addColorStop(1, 'rgba(0,0,0,0)');
+  cx.fillStyle = g; cx.fillRect(0,0,256,256);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ---- 太阳（FBM 湍流球 + 色球层 + 光晕 sprite） ----
+const spaceGroup = new THREE.Group();      // 序章/1/3/4/沙盒 的主场景
+scene.add(spaceGroup);
+
+const sunMat = new THREE.ShaderMaterial({
+  vertexShader:SUN_VERT, fragmentShader:SUN_FRAG,
+  uniforms:{ uTime:{value:0} },
+});
+const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(SUN_RENDER_R, 96, 96), sunMat);
+sunMesh.position.set(...SUN_RENDER_POS);
+sunMesh.renderOrder = 0;
+sunMesh.userData.body = 'sun';
+const sunChroma = new THREE.Mesh(
+  new THREE.SphereGeometry(SUN_RENDER_R*1.08, 48, 48),
+  new THREE.MeshBasicMaterial({ color:0xff9f43, transparent:true, opacity:0.16,
+    blending:THREE.AdditiveBlending, side:THREE.BackSide, depthWrite:false }));
+sunChroma.position.copy(sunMesh.position);
+sunChroma.renderOrder = 8;
+const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map:makeGlowTexture('rgba(255,244,214,0.85)','rgba(255,181,71,0.28)'),
+  transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }));
+sunGlow.scale.setScalar(64);
+sunGlow.position.copy(sunMesh.position);
+sunGlow.renderOrder = 9;
+spaceGroup.add(sunMesh, sunChroma, sunGlow);
+
+const sunDirW = new THREE.Vector3();       // 地心→太阳（渲染坐标，单位化）
+function updateSunDir(){ sunDirW.copy(sunMesh.position).sub(earthGroup.position).normalize(); }
+
+// ---- 地球组（地球 + 云层 + 大气辉光） ----
+const earthGroup = new THREE.Group();
+spaceGroup.add(earthGroup);
+
+const earthMat = new THREE.ShaderMaterial({
+  vertexShader:EARTH_VERT, fragmentShader:EARTH_FRAG,
+  uniforms:{
+    uEarthCenter:{ value:new THREE.Vector3() },
+    // 影锥参数（渲染空间）——与画面上那个锥体共用同一套数，
+    // 表面影斑因此永远贴合锥面，不会各算各的。
+    uConeBase:{ value:new THREE.Vector3() },
+    uConeAxis:{ value:new THREE.Vector3(1,0,0) },
+    uConeBaseR:{ value:1 },
+    uConeUmbraLen:{ value:1 },
+    uConePenLen:{ value:1 },
+    uConePenTipR:{ value:2.3 },
+    uSunDirW:{ value:SUN_DIR_INIT() },
+    uMoonDirW:{ value:new THREE.Vector3(-1,0,0) },
+    uSunDistKm:{ value:D_SUN_MEAN },
+    uMoonDistKm:{ value:D_MOON_MEAN },
+    uEclipseOn:{ value:0 },
+    uTime:{ value:0 },
+  },
+});
+const earthMesh = new THREE.Mesh(new THREE.SphereGeometry(RE_RENDER, 96, 96), earthMat);
+earthMesh.userData.body = 'earth';
+earthMesh.renderOrder = 1;
+
+const cloudMat = new THREE.ShaderMaterial({
+  vertexShader:BASIC_VERT, fragmentShader:CLOUD_FRAG,
+  uniforms:{ uTime:{value:0}, uSunDirW:{value:SUN_DIR_INIT()}, uDim:{value:1},
+    uConeBase:{value:new THREE.Vector3()}, uConeAxis:{value:new THREE.Vector3(1,0,0)},
+    uConeBaseR:{value:1}, uConeUmbraLen:{value:1},
+    uConePenLen:{value:1}, uConePenTipR:{value:2.3} },
+  transparent:true, depthWrite:false,
+});
+const cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(RE_RENDER*1.012, 64, 64), cloudMat);
+cloudMesh.renderOrder = 5;
+
+const atmoMat = new THREE.ShaderMaterial({
+  vertexShader:BASIC_VERT, fragmentShader:ATMO_FRAG,
+  uniforms:{ uSunDirW:{value:SUN_DIR_INIT()}, uBlood:{value:0}, uBoost:{value:0} },
+  transparent:true, depthWrite:false, side:THREE.BackSide, blending:THREE.AdditiveBlending,
+});
+const atmoMesh = new THREE.Mesh(new THREE.SphereGeometry(RE_RENDER*1.055, 64, 64), atmoMat);
+atmoMesh.renderOrder = 6;
+
+earthGroup.add(earthMesh, cloudMesh, atmoMesh);
+
+// 地球轨道线（装饰）
+const earthOrbitLine = (() => {
+  const pts = [];
+  for (let i=0;i<=128;i++){
+    const a = i/128*Math.PI*2;
+    pts.push(new THREE.Vector3(Math.cos(a)*62, 0, Math.sin(a)*62));
+  }
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color:0x9aa4c8, transparent:true, opacity:0.14 }));
+  l.position.copy(sunMesh.position);
+  return l;
+})();
+spaceGroup.add(earthOrbitLine);
+
+// ---- 月球 ----
+const moonMat = new THREE.ShaderMaterial({
+  vertexShader:BASIC_VERT, fragmentShader:MOON_FRAG,
+  uniforms:{
+    uSunDirW:{ value:SUN_DIR_INIT() },
+    uMoonCenter:{ value:new THREE.Vector3() },
+    // 影锥参数（渲染空间）——与画面上那个锥体共用同一套数，
+    // 表面影斑因此永远贴合锥面，不会各算各的。
+    uConeBase:{ value:new THREE.Vector3() },
+    uConeAxis:{ value:new THREE.Vector3(1,0,0) },
+    uConeBaseR:{ value:1 },
+    uConeUmbraLen:{ value:1 },
+    uConePenLen:{ value:1 },
+    uConePenTipR:{ value:2.3 },
+    uMoonDirW:{ value:new THREE.Vector3(-1,0,0) },
+    uMoonDistKm:{ value:D_MOON_MEAN },
+    uSunDistKm:{ value:D_SUN_MEAN },
+    uEclipseOn:{ value:0 },
+  },
+});
+const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(RM_RENDER, 64, 64), moonMat);
+moonMesh.userData.body = 'moon';
+moonMesh.renderOrder = 1;
+spaceGroup.add(moonMesh);
+
+// 月球轨道线（随章节更新半径/倾角）
+const moonOrbitLine = (() => {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(129*3), 3));
+  const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color:0x9aa4c8, transparent:true, opacity:0.22 }));
+  return l;
+})();
+spaceGroup.add(moonOrbitLine);
+/* 轨道线与月亮共用 moonDirAtPhase + moonRenderPos。
+   此前这里另跑一套 moonPosition() 且倾角/交点一律传 0，画出来是黄道面里的平圆，
+   月亮却按真实倾角走 —— 于是月亮根本不在自己的轨道线上。 */
+const _olD = new THREE.Vector3(), _olP = new THREE.Vector3();
+function updateMoonOrbitLine(){
+  const arr = moonOrbitLine.geometry.attributes.position.array;
+  for (let i=0;i<=128;i++){
+    moonDirAtPhase(i/128*Math.PI*2, _olD);
+    moonRenderPos(_olD, _olP);
+    arr[i*3] = _olP.x; arr[i*3+1] = _olP.y; arr[i*3+2] = _olP.z;
+  }
+  moonOrbitLine.geometry.attributes.position.needsUpdate = true;
+}
+
+// ---- 影锥构建器（单位锥体：底部在天体端 y=0，远端 y=1；每帧只改 transform） ----
+function makeConeMesh(color, alpha, isUmbra){
+  // 本影：尖锥（顶端半径≈0）；半影：向外张开的截头锥（远端 2.3 倍）
+  const geo = new THREE.CylinderGeometry(1, 1, 1, 64, 1, true);   // 张开率交给 uTipRatio
+  geo.translate(0, 0.5, 0);
+  const mat = new THREE.ShaderMaterial({
+    vertexShader:CONE_VERT, fragmentShader:CONE_FRAG,
+    uniforms:{ uColor:{value:new THREE.Color(...color)}, uBaseAlpha:{value:alpha},
+               uTipRatio:{value: isUmbra ? 0.0 : CONE_PEN_TIP} },
+    transparent:true, depthWrite:false, side:THREE.DoubleSide,
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.renderOrder = 3;
+  return m;
+}
+// 朝向：把 +Y 旋转到 axis 方向
+const _coneQ = new THREE.Quaternion(), _Y = new THREE.Vector3(0,1,0);
+/* 把影锥的渲染参数交给「被照射天体」的材质。
+   影锥怎么摆，影斑就怎么落 —— 两者从此不可能对不上。 */
+/* GLSL coneShade() 的 CPU 版，逐行对应。
+   观察者脚下到底被影锥遮了多少，必须和画面上那块影斑同一个算法算出来，
+   否则会出现"地球上明明投着影子，读数却说 0.0%"。 */
+const _csRel = new THREE.Vector3();
+function coneShadeAt(P, base, axis, baseR, umbraLen, penLen, penTipR){
+  const rel = _csRel.copy(P).sub(base);
+  const t = rel.dot(axis);
+  if (t <= 0 || umbraLen <= 0) return 0;
+  const rho = rel.addScaledVector(axis, -t).length();
+  const rU = Math.max(baseR*(1 - t/umbraLen), 0);
+  const rP = baseR + (penTipR - baseR)*clamp(t/Math.max(penLen, 1e-4), 0, 1);
+  return 1 - smoothstep(rU, Math.max(rP, rU + 1e-4), rho);
+}
+
+/* 已知日月视半径与目标遮挡比例，反推两圆心该差多少角距。
+   于是「小朋友的眼睛」里太阳被咬掉的分量，正好等于她脚下那块影斑的深浅，
+   而视直径仍用真实角度，不受渲染尺度影响。 */
+function sepForObscuration(rSun, rMoon, target){
+  if (target <= 0.0005) return rSun + rMoon;
+  if (target >= 0.9995) return Math.max(Math.abs(rSun - rMoon)*0.98, 0);
+  let lo = 0, hi = rSun + rMoon;
+  for (let i=0;i<28;i++){
+    const mid = (lo + hi)/2;
+    if (obscuration(rSun, rMoon, mid) > target) lo = mid; else hi = mid;
+  }
+  return (lo + hi)/2;
+}
+
+function setConeUniforms(mat, base, axis, baseR, umbraLen, penLen, penTipR){
+  const u = mat.uniforms;
+  u.uConeBase.value.copy(base);
+  u.uConeAxis.value.copy(axis);
+  u.uConeBaseR.value    = baseR;
+  u.uConeUmbraLen.value = umbraLen;
+  u.uConePenLen.value   = penLen;
+  u.uConePenTipR.value  = penTipR;
+}
+
+function placeCone(mesh, basePos, axis, baseRadius, length, tipRatio){
+  mesh.position.copy(basePos);
+  _coneQ.setFromUnitVectors(_Y, axis);
+  mesh.quaternion.copy(_coneQ);
+  mesh.scale.set(baseRadius, Math.max(length, 0.001), baseRadius);
+  if (tipRatio !== undefined) mesh.material.uniforms.uTipRatio.value = tipRatio;
+}
+
+/* 半影锥的张开率：渲染半径(t) = R_occ·s_r + t·(s_r/s_d)·tan(半影半角)。
+   s_r 是天体半径的缩放，s_d 是距离的缩放 —— 两者不同，所以斜率要显式换算，
+   写死一个倍数会有几个百分点的偏差。返回"远端/底端"的比值供 uTipRatio 用。 */
+function penTipRatio(baseRenderR, renderLen, penHalfAngle, radiusScale, distScale){
+  const slope = (radiusScale/distScale) * Math.tan(penHalfAngle);
+  return 1 + renderLen*slope/Math.max(baseRenderR, 1e-6);
+}
+
+const moonUmbraCone = makeConeMesh(C.umbra, 0.55, true);
+const moonPenCone   = makeConeMesh(C.penumbra, 0.16, false);
+const earthUmbraCone = makeConeMesh(C.umbra, 0.26, true);   // 比月球影锥淡：它体积大得多
+const earthPenCone   = makeConeMesh(C.penumbra, 0.07, false);
+spaceGroup.add(moonPenCone, moonUmbraCone, earthPenCone, earthUmbraCone);
+
+// 本影锥尖标记 + 环食间隙虚线
+const coneTipMark = new THREE.Mesh(
+  new THREE.SphereGeometry(0.14, 12, 12),
+  new THREE.MeshBasicMaterial({ color:0xffd166 }));
+coneTipMark.renderOrder = 4;
+spaceGroup.add(coneTipMark);
+const gapDash = (() => {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  const l = new THREE.Line(g, new THREE.LineDashedMaterial({ color:0xffd166, dashSize:0.5, gapSize:0.35, transparent:true, opacity:0.9 }));
+  l.renderOrder = 4;
+  return l;
+})();
+spaceGroup.add(gapDash);
+
+// 观察者站位标记（第3章：地表一个小图钉）
+const observerMark = (() => {
+  const g = new THREE.Group();
+  const pin = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12),
+    new THREE.MeshBasicMaterial({ color:0xffd166 }));
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.26, 0.36, 24),
+    new THREE.MeshBasicMaterial({ color:0xffd166, transparent:true, opacity:0.7, side:THREE.DoubleSide, depthWrite:false }));
+  g.add(pin, ring);
+  g.renderOrder = 7;
+  g.visible = false;
+  return g;
+})();
+spaceGroup.add(observerMark);
+
+// ---- 台灯场景（第2章，故意脱离太空） ----
+const lampGroup = new THREE.Group();
+lampGroup.visible = false;
+scene.add(lampGroup);
+
+const lampState = { ballX:0, lampR:1.15 };
+const LAMP_X = -8, WALL_X = 8, BALL_R = 0.55;
+
+const lampDisc = new THREE.Mesh(new THREE.CircleGeometry(1.15, 48),
+  new THREE.MeshBasicMaterial({ color:0xffe3b0 }));
+lampDisc.position.set(LAMP_X, 0, 0);
+lampDisc.rotation.y = Math.PI/2;             // 面向 +X（朝墙）
+lampDisc.renderOrder = 1;
+const lampHousing = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.6, 1.6, 32, 1, true),
+  new THREE.MeshBasicMaterial({ color:0x2a2f4a, side:THREE.DoubleSide }));
+lampHousing.rotation.z = Math.PI/2;
+lampHousing.position.set(LAMP_X-0.9, 0, 0);
+const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map:makeGlowTexture('rgba(255,227,176,0.9)','rgba(255,190,110,0.3)'),
+  transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }));
+lampGlow.scale.setScalar(9);
+lampGlow.position.set(LAMP_X, 0, 0);
+lampGlow.renderOrder = 8;
+
+const lampLight = new THREE.PointLight(0xffe3b0, 60, 60, 1.8);   // 只照亮小球（标准材质）
+lampLight.position.set(LAMP_X+0.4, 0, 0);
+
+const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 32, 32),
+  new THREE.MeshStandardMaterial({ color:0xc8c0b0, roughness:0.85, metalness:0 }));
+ballMesh.position.set(0, 0, 0);
+ballMesh.userData.body = 'ball';
+ballMesh.renderOrder = 1;
+
+const wallMat = new THREE.ShaderMaterial({
+  vertexShader:WALL_VERT, fragmentShader:WALL_FRAG,
+  uniforms:{
+    uLampP:{ value:new THREE.Vector3(LAMP_X,0,0) }, uLampR:{ value:lampState.lampR },
+    uBallP:{ value:new THREE.Vector3() }, uBallR:{ value:BALL_R },
+  },
+});
+const wallMesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 11), wallMat);
+wallMesh.position.set(WALL_X, 0, 0);
+wallMesh.rotation.y = -Math.PI/2;            // 面向 -X（朝灯）
+wallMesh.renderOrder = 1;
+
+// 台灯的影锥（与天体影锥同一套着色器，教学连续性）
+const lampUmbraCone = makeConeMesh(C.umbra, 0.5, true);
+const lampPenCone = makeConeMesh(C.penumbra, 0.15, false);
+
+lampGroup.add(lampHousing, lampDisc, lampGlow, ballMesh, wallMesh, lampPenCone, lampUmbraCone);
+lampGroup.add(lampLight);
+
+// ---- 第5章场景（日心侧视图：黄道盘 / 白道盘 / 小天体 / 影子射线） ----
+const ch5Group = new THREE.Group();
+ch5Group.visible = false;
+scene.add(ch5Group);
+
+// ⚠️ 太阳必须留在 ch5Group 原点：本章地球绕原点公转（见 update 里的 phiE），
+// 把太阳挪走会让地球不再绕太阳转，一年的几何全错。
+// 之前"太阳过曝糊满屏"的真正原因是相机 target 也是原点（正对太阳），
+// 修法是让相机看「地球」而不是原点 —— 见 Ch5.setup / Ch5.update 的跟随逻辑。
+const ch5Sun = new THREE.Mesh(new THREE.SphereGeometry(3, 48, 48), sunMat);   // 复用太阳着色器
+ch5Group.add(ch5Sun);
+const ch5SunGlow = new THREE.Sprite(sunGlow.material.clone());
+ch5SunGlow.scale.setScalar(14);                  // 比主场景小：本章相机离太阳近，太大会溢出画面
+ch5Group.add(ch5SunGlow);
+
+const ch5Earth = new THREE.Mesh(new THREE.SphereGeometry(2.0, 48, 48),
+  new THREE.MeshBasicMaterial({ color:0x2f66b8 }));
+ch5Earth.userData.body = 'earth5';
+const ch5EarthAtmo = new THREE.Mesh(new THREE.SphereGeometry(2.12, 32, 32),
+  new THREE.MeshBasicMaterial({ color:0x5ba3e0, transparent:true, opacity:0.25,
+    blending:THREE.AdditiveBlending, side:THREE.BackSide, depthWrite:false }));
+const ch5EarthGroup = new THREE.Group();
+ch5EarthGroup.add(ch5Earth, ch5EarthAtmo);
+ch5Group.add(ch5EarthGroup);
+
+const ch5Moon = new THREE.Mesh(new THREE.SphereGeometry(0.62, 24, 24),
+  new THREE.MeshBasicMaterial({ color:0xc8c4bc }));
+ch5Group.add(ch5Moon);
+
+// 黄道面圆盘（半透明浅色）
+const eclipticDisc = new THREE.Mesh(new THREE.CircleGeometry(EARTH_ORBIT_R5+8, 96),
+  new THREE.MeshBasicMaterial({ color:0x5b7ac4, transparent:true, opacity:0.07,
+    side:THREE.DoubleSide, depthWrite:false }));
+eclipticDisc.rotation.x = -Math.PI/2;       // 放到 XZ 平面
+ch5Group.add(eclipticDisc);
+// 地球公转轨道线
+const ch5OrbitLine = (() => {
+  const pts = [];
+  for (let i=0;i<=128;i++){
+    const a = i/128*Math.PI*2;
+    pts.push(new THREE.Vector3(Math.cos(a)*EARTH_ORBIT_R5, 0, Math.sin(a)*EARTH_ORBIT_R5));
+  }
+  return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color:0x9aa4c8, transparent:true, opacity:0.3 }));
+})();
+ch5Group.add(ch5OrbitLine);
+// 白道面圆盘（倾斜，挂在地球上）
+const lunarPlane = new THREE.Mesh(new THREE.CircleGeometry(MOON_ORBIT_R5+3.2, 64),
+  new THREE.MeshBasicMaterial({ color:0xffd166, transparent:true, opacity:0.09,
+    side:THREE.DoubleSide, depthWrite:false }));
+lunarPlane.rotation.x = -Math.PI/2;
+const lunarPlanePivot = new THREE.Group();   // 倾角与交点旋转的枢轴
+lunarPlanePivot.add(lunarPlane);
+ch5EarthGroup.add(lunarPlanePivot);
+// 月球轨道线（第5章版）
+const ch5MoonOrbit = (() => {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(129*3), 3));
+  return new THREE.Line(g, new THREE.LineBasicMaterial({ color:0xffd166, transparent:true, opacity:0.4 }));
+})();
+ch5EarthGroup.add(ch5MoonOrbit);
+// 交点连线
+const nodeLine = (() => {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  return new THREE.Line(g, new THREE.LineBasicMaterial({ color:0xff7b7b, transparent:true, opacity:0.8 }));
+})();
+ch5EarthGroup.add(nodeLine);
+// 月影射线（从月球背向太阳）
+const shadowRay = (() => {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  return new THREE.Line(g, new THREE.LineBasicMaterial({ color:0x2a1f5c, transparent:true, opacity:0.95 }));
+})();
+shadowRay.renderOrder = 4;
+ch5Group.add(shadowRay);
+
+// ---- 后期：Bloom + 暗角（文档 4.6） ----
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+renderPass.clearAlpha = 0;
+composer.addPass(renderPass);
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.5, 0.85);
+composer.addPass(bloomPass);
+const vignettePass = new ShaderPass({
+  uniforms:{ tDiffuse:{value:null}, uStrength:{value:0.25} },
+  vertexShader:VIGNETTE_VERT, fragmentShader:VIGNETTE_FRAG,
+});
+composer.addPass(vignettePass);
+// r152+ 的线性工作流：tone mapping + sRGB 编码必须由 OutputPass 收尾
+composer.addPass(new OutputPass());
+
+// ---- 资源清理（章节 teardown 用，文档 B.7） ----
+function disposeObject3D(obj){
+  obj.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material){
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of ms){
+        for (const k of Object.keys(m)){
+          const v = m[k];
+          if (v && v.isTexture) v.dispose();
+        }
+        m.dispose();
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 5. 状态与数据模型 ═══
+   State 是单一真相源；所有派生物理量每帧从 State 全量重算（不做增量）。
+   物理计算永远用真实 km；渲染坐标只负责好看。
+   ═══════════════════════════════════════════════════════════════ */
+
+const State = {
+  chapter: 0,                 // 0 序章 … 5 第5章，6 沙盒
+  time: 0,                    // 章节时间轴 0–1
+  playing: false,
+  speed: 1,
+
+  // 可调物理参数（真实单位）
+  moonDistance: D_MOON_MEAN,  // km
+  sunDistance: D_SUN_MEAN,    // km
+  moonRadiusScale: 1.0,       // 第1章：月亮半径倍数
+  moonDistScale: 1.0,         // 第1章：月亮距离倍数
+  moonInclination: MOON_INCL, // 度
+  nodeLongitude: 20,          // 度，升交点黄经
+  ch4Height: 0,               // km，第4章月亮穿过影锥的高度偏移
+
+  // 观察者站位：以"正对太阳的点"为原点的偏移（度）
+  observer: { lat: 8, lon: -14 },
+
+  // 表现参数
+  scaleKnob: 0.62,
+  showCones: true,            // 总开关（兼容旧引用）
+  showMoonCone: true,         // 月球影锥（日食那条）
+  showEarthCone: true,        // 地球影锥（月食那条）
+  showOrbits: true,
+  showLabels: true,
+  eyeFov: 4,                  // 度
+  eyeViewExpanded: false,
+
+  // 台灯场景
+  lampR: 1.15,
+  ballX: 0.5,
+
+  // 第5章
+  ch5Flatten: false,
+
+  // 进度
+  badges: [false,false,false,false,false,false],
+  muted: false,
+};
+
+// ---- 持久化（localStorage） ----
+function loadProgress(){
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    if (Array.isArray(d.badges) && d.badges.length === 6) State.badges = d.badges.map(Boolean);
+    if (typeof d.muted === 'boolean') State.muted = d.muted;
+  } catch(e){ /* 忽略损坏的存档 */ }
+}
+function saveProgress(){
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({ badges:State.badges, muted:State.muted }));
+  } catch(e){ /* 隐私模式下可能不可写 */ }
+}
+loadProgress();
+
+// ---- 发布订阅（只给显式 UI 变更用；每帧派生不经过这里） ----
+const _subs = new Set();
+const subscribe = fn => (_subs.add(fn), () => _subs.delete(fn));
+function notify(key){ for (const fn of _subs) fn(key); }
+
+// ---- 渲染坐标辅助 ----
+/** 月球渲染轨道半径：近地点→MOON_ORBIT_MIN，远地点→MOON_ORBIT_MAX */
+function moonRenderDist(moonD){
+  const f = clamp((moonD - D_MOON_PERI)/(D_MOON_APO - D_MOON_PERI), 0, 1);
+  return lerp(MOON_ORBIT_MIN, MOON_ORBIT_MAX, f);
+}
+const _YAXIS = new THREE.Vector3(0,1,0);
+
+// ---- 每帧物理派生（文档 6.3：全量重算，不做增量） ----
+const D = {};   // 派生量容器
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
+function derive(){
+  D.eyeMode = -1;               // 章节 update 中声明：0/1/2 或 'full'
+  if (!D.moonDirW){ D.moonDirW = sunDirW.clone(); }   // 首帧兜底：月亮在合日位置
+  D.moonUpOff = D.moonUpOff || 0;
+  const sunD = State.sunDistance;
+  const moonD = State.moonDistance;
+  D.sunD = sunD; D.moonD = moonD;
+
+  // 中心处角半径
+  D.rSun  = angRad(R_SUN, sunD);
+  D.rMoon = angRad(R_MOON, moonD);
+
+  // 月球影锥（⚠️ dist = 日月距离）
+  const dSunMoon = sunD - moonD;
+  D.umbraLenMoon = umbraLength(R_MOON, R_SUN, dSunMoon);
+  D.umbraHalfMoon = umbraHalfAngle(R_MOON, R_SUN, dSunMoon);
+  D.penHalfMoon = penumbraHalfAngle(R_MOON, R_SUN, dSunMoon);
+  /* 锥尖到地表还差多少：此前写成 (moonD - R_EARTH)，等于假设影轴正穿地心。
+     月球一有黄纬偏移，影轴就偏离地心，那个数就偏了。改用精确几何：
+     沿轴到地心的距离，减去影轴在地球里截出的那半条弦。 */
+  const axisP = (D._axisP || (D._axisP = new THREE.Vector3())).copy(sunDirW).negate();
+  const mv = D.moonPosKm || D.moonDirW.clone().multiplyScalar(moonD);
+  const alongToEarth = -mv.dot(axisP);                       // 月球沿轴到地心
+  const perpV = (D._perpV || (D._perpV = new THREE.Vector3()))
+    .copy(mv).negate().addScaledVector(axisP, -alongToEarth);
+  const rhoAxis = perpV.length();                            // 影轴到地心的垂距
+  const halfChord = Math.sqrt(Math.max(R_EARTH*R_EARTH - rhoAxis*rhoAxis, 0));
+  const nearestSurf = alongToEarth - halfChord;              // 月球到"影轴入地点"的距离
+  // 影轴要真的朝着地球，才谈得上"够不够得到"：
+  //  · alongToEarth <= 0 → 月亮在背日侧（望前后），影子整个射向外太空
+  //  · rhoAxis > R_EARTH → 影轴从地球旁边擦过去
+  D.shadowAimsAtEarth = alongToEarth > 0 && rhoAxis <= R_EARTH;
+  D.axisMissesEarth = !D.shadowAimsAtEarth;
+  D.umbraReachesSurface = !D.axisMissesEarth && D.umbraLenMoon >= nearestSurf;
+  D.umbraTipGap = nearestSurf - D.umbraLenMoon;              // >0 = 环食，差这么多 km
+
+  // 地心处分类
+  const c0 = classifySolar(D.rSun, D.rMoon, 0);
+  D.geoType = c0.type; D.geoMag = c0.magnitude;
+
+  // 地球影锥（月食用，dist = 日地距离）
+  D.umbraLenEarth = umbraLength(R_EARTH, R_SUN, sunD);
+  D.rUmbraAtMoonKm = R_EARTH*(1 - moonD/D.umbraLenEarth);
+  D.rPenAtMoonKm = R_EARTH + moonD*Math.tan(penumbraHalfAngle(R_EARTH, R_SUN, sunD));
+
+  // —— 观察者几何（方向取自渲染几何，距离取自物理） ——
+  const s = sunDirW;
+  const lat = State.observer.lat*DEG, lon = State.observer.lon*DEG;
+  _v1.crossVectors(_YAXIS, s).normalize();                      // right
+  _v2.crossVectors(s, _v1).normalize();                         // up2
+  D.obsDir = (D.obsDir || new THREE.Vector3())
+    .copy(s).multiplyScalar(Math.cos(lat)*Math.cos(lon))
+    .addScaledVector(_v1, Math.cos(lat)*Math.sin(lon))
+    .addScaledVector(_v2, Math.sin(lat)).normalize();
+  // km 空间（地心为原点）
+  const obsKm = D.obsDir.clone().multiplyScalar(R_EARTH);
+  // 月球物理位置：直接取 placeMoon() 算好的那一个，不再重算一遍
+  const moonKm = D.moonPosKm ? D.moonPosKm.clone()
+    : D.moonDirW.clone().multiplyScalar(moonD).addScaledVector(_YAXIS, D.moonUpOff);
+  const toSun = s.clone().multiplyScalar(sunD).sub(obsKm);
+  const toMoon = moonKm.clone().sub(obsKm);
+  const dSO = toSun.length(), dMO = toMoon.length();
+  D.obsRSun = angRad(R_SUN, dSO);
+  D.obsRMoon = angRad(R_MOON, dMO);
+  D.obsSepPhys = Math.acos(clamp(toSun.dot(toMoon)/(dSO*dMO), -1, 1));   // 真实角距
+  D.obsSep = D.obsSepPhys;
+  D.obsObsc = obscuration(D.obsRSun, D.obsRMoon, D.obsSep);
+  const co = classifySolar(D.obsRSun, D.obsRMoon, D.obsSep);
+  D.obsType = co.type; D.obsMag = co.magnitude;
+  D.skyB = skyBrightness(D.obsObsc);
+  D.starVis = starVisibility(D.skyB);
+  D.obsZone = D.obsObsc >= 0.9995 ? 'umbra' : (D.obsObsc > 0.002 ? 'penumbra' : 'none');
+
+  // —— 月食几何（第4章；月亮在日地延长线附近） ——
+  const mLen = moonKm.length();
+  const rEa = angRad(R_EARTH, mLen);                 // 从月亮看地球角半径
+  const rSa = angRad(R_SUN, sunD + mLen);            // 从月亮看太阳角半径（近似）
+  D.lunRU = Math.max(rEa - rSa, 1e-6);
+  D.lunRP = rEa + rSa;
+  // 月心到影心的角距：影轴 = 背向太阳（-s）；月亮相对影轴的偏角
+  const mDirN = moonKm.clone().normalize();
+  const antiSun = s.clone().negate();
+  D.lunSep = Math.acos(clamp(mDirN.dot(antiSun), -1, 1));
+  const cl = classifyLunar(D.rMoon, D.lunRU, D.lunRP, D.lunSep);
+  D.lunType = cl.type; D.lunMag = cl.magnitude;
+
+  // 尺度旋钮说明
+  D.exag = Math.pow(EXAG_MAX, State.scaleKnob);
+  D.comp = 1/Math.pow(COMP_MAX, State.scaleKnob);
+
+  return D;
+}
+
+// ---- 影锥摆放（渲染坐标，锥尖位置强制与物理判定一致 —— 文档 5.9 推荐方案） ----
+// 影子轴 = 穿过月球、背向太阳的直线（平行光）。锥体/标记/虚线全在这条轴上，
+// 因此时间轴刮擦（月亮偏离日地线）时影子扫过地球的视觉与地表着色器一致。
+const _axis = new THREE.Vector3();
+function updateMoonShadowCones(){
+  _axis.copy(sunDirW).negate();                      // 太阳在 -X → 影子朝 +X
+  const moonPos = moonMesh.position;
+  const earthC = earthGroup.position;
+  const RE = RE_RENDER * earthGroup.scale.x;
+  // 影子轴上与地心最近的点 crossC，以及轴到地心的垂直距离 ρ
+  const m = _v2.copy(moonPos).sub(earthC);
+  const b = m.dot(_axis);                            // <0：地心在月亮沿轴前方
+  const crossC = _v1.copy(moonPos).addScaledVector(_axis, -b);
+  const rho = crossC.distanceTo(earthC);
+  const surfBack = Math.sqrt(Math.max(RE*RE - rho*rho, 0.04));  // 轴穿入地球的"后半段"
+  const reach = D.umbraReachesSurface;
+  const tip = _v3.copy(crossC);
+  let coneLen;
+  if (reach){
+    // 全食：锥尖插进地球。深浅随物理余量（norm），封顶在地球内部。
+    const norm = clamp((State.moonDistance - D.umbraLenMoon)/R_EARTH, -1.5, 1.0);
+    tip.addScaledVector(_axis, -norm*RE*0.55 - RE*0.3);
+    coneLen = Math.max(moonPos.distanceTo(tip), 0.01);
+    coneTipMark.visible = false;
+    gapDash.visible = false;
+    gapLabel.style.display = 'none';
+  } else if (!D.shadowAimsAtEarth || D.umbraTipGap < 0){
+    // 影轴压根没穿过地球（月亮离朔太远，影子甩到一边）：
+    // 锥子照常画，但"差 X 公里够不到"这句没有意义，不标。
+    coneLen = Math.max(D.umbraLenMoon * (moonPos.distanceTo(earthC)/State.moonDistance), 0.01);
+    coneTipMark.visible = false;
+    gapDash.visible = false;
+    gapLabel.style.display = 'none';
+  } else {
+    // 环食：锥尖悬在地球之外。间隙做可视映射，真实公里数由标注给出。
+    const gapVis = 0.7 + clamp(D.umbraTipGap/30000, 0, 1)*4.2;
+    tip.addScaledVector(_axis, -(surfBack + gapVis));
+    coneLen = Math.max(moonPos.distanceTo(tip), 0.01);
+    coneTipMark.position.copy(tip);
+    coneTipMark.visible = State.showCones && State.showMoonCone;
+    // 虚线：锥尖 → 轴与地表的交点
+    const surf = _v2.copy(crossC).addScaledVector(_axis, -surfBack);
+    const arr = gapDash.geometry.attributes.position.array;
+    arr[0]=tip.x; arr[1]=tip.y; arr[2]=tip.z;
+    arr[3]=surf.x; arr[4]=surf.y; arr[5]=surf.z;
+    gapDash.geometry.attributes.position.needsUpdate = true;
+    gapDash.computeLineDistances();
+    gapDash.visible = State.showCones && State.showMoonCone;
+    placeGapLabel(tip, surf, D.umbraTipGap);
+  }
+  // ⚠️ 底半径必须用「实际」渲染半径：尺度旋钮会缩放天体，
+  //    用常量 RM_RENDER 会让影锥和天体脱节（旋钮一动，锥比月亮还粗）。
+  const RM = RM_RENDER * moonMesh.scale.x;
+  placeCone(moonUmbraCone, moonPos, _axis, RM, coneLen, 0);   // 沿"背向太阳"延伸，收敛成尖
+  // —— 半影锥：向外张开，扫过地球。张开率由物理半影半角换算，不写死倍数 ——
+  const penLen = coneLen + RE*1.6;
+  const tipR = penTipRatio(RM, penLen, D.penHalfMoon,
+                           RE/R_EARTH,
+                           moonRenderDist(State.moonDistance)/State.moonDistance);
+  placeCone(moonPenCone, moonPos, _axis, RM, penLen, tipR);
+  moonUmbraCone.visible = moonPenCone.visible = State.showCones && State.showMoonCone;
+  // 地表影斑用的就是这两个锥的参数
+  setConeUniforms(earthMat, moonPos, _axis, RM, coneLen, penLen, RM*tipR);
+  setConeUniforms(cloudMat, moonPos, _axis, RM, coneLen, penLen, RM*tipR);   // 云与地面同一套
+}
+
+/* 日–地–月三体：两条影锥始终同时存在，各章只是看的角度不同。
+   同时更新，地球与月球也就始终都在响应对方投来的影子 ——
+   第3章能看见地球自己拖着的那条影锥，第4章也能看见月球的。 */
+function updateAllShadowCones(){
+  updateMoonShadowCones();
+  updateEarthShadowCones();
+  earthMat.uniforms.uEclipseOn.value = 1;
+  moonMat.uniforms.uEclipseOn.value = 1;
+  syncObserverWithShadow();
+}
+
+/* 把「你站在哪里」和「小朋友的眼睛」钉到同一块影斑上。
+   观察者脚下的遮挡改由影锥几何决定 —— 与地表那块影子同一次计算 ——
+   再反推出 PIP 里两圆的角距。三处从此说的是同一件事。 */
+const _obsP = new THREE.Vector3();
+function syncObserverWithShadow(){
+  const u = earthMat.uniforms;
+  _obsP.copy(earthGroup.position)
+       .addScaledVector(D.obsDir, RE_RENDER*earthGroup.scale.x);
+  const sh = coneShadeAt(_obsP, u.uConeBase.value, u.uConeAxis.value,
+    u.uConeBaseR.value, u.uConeUmbraLen.value, u.uConePenLen.value, u.uConePenTipR.value);
+  // 只有站在朝向月亮的那半边才可能被挡住
+  const facing = Math.max(D.obsDir.dot(D.moonDirW), 0) > 0 ? 1 : 0;
+  D.obsObsc = sh * facing;
+  /* 月亮在天上的位置：
+       · 还没咬到太阳 → 用真实角距。新月前后它离太阳可能几十度，
+         远在 4° 视场之外，于是画面里干脆看不见它 —— 这才对得上"现在没有日食"。
+         （此前一律用反推值，而反推在遮挡为 0 时返回"刚好外切"，
+           结果没有日食也总有个黑盘贴着太阳边。）
+       · 已经咬到了 → 用影斑反推的角距，保证咬口大小与地面那块影子一致。 */
+  D.obsSep = D.obsObsc > 0.0005
+    ? sepForObscuration(D.obsRSun, D.obsRMoon, D.obsObsc)
+    : Math.max(D.obsSepPhys, D.obsRSun + D.obsRMoon);
+  const co  = classifySolar(D.obsRSun, D.obsRMoon, D.obsSep);
+  D.obsType = co.type; D.obsMag = co.magnitude;
+  D.skyB    = skyBrightness(D.obsObsc);
+  D.starVis = starVisibility(D.skyB);
+  D.obsZone = D.obsObsc >= 0.9995 ? 'umbra' : (D.obsObsc > 0.002 ? 'penumbra' : 'none');
+}
+
+function updateEarthShadowCones(){
+  // 地球影锥（第4章）：从地球背向太阳伸出，比月球影锥粗得多长得多
+  _axis.copy(sunDirW).negate();
+  const earthC = earthGroup.position;
+  const dM = moonRenderDist(State.moonDistance);
+  // 锥长由物理反推：要求锥在「月球所在处」的截面半径，等于物理本影半径按同一比例缩放。
+  // 这样画面上"地影有多少个月亮宽"就是真实的 2.65 —— 而不是随手取的倍数。
+  const RE = RE_RENDER * earthGroup.scale.x;              // 实际渲染半径（含尺度旋钮）
+  const umbraRatio = D.rUmbraAtMoonKm / R_EARTH;          // <1，本影收缩
+  const len    = dM / Math.max(1 - umbraRatio, 1e-4);
+  // 半影是向外张开的：画到本影锥那么长(≈3.6 倍月距)会在画面里摊成一大片。
+  // 截到月球轨道外一点即可 —— 张开率由 penTipRatio 保证，月球处的截面半径不受影响。
+  const penLen = dM * 1.45;
+  const penHalfEarth = penumbraHalfAngle(R_EARTH, R_SUN, State.sunDistance);
+  const tipR = penTipRatio(RE, penLen, penHalfEarth,
+                           RE/R_EARTH, dM/State.moonDistance);
+  placeCone(earthUmbraCone, earthC, _axis, RE, len, 0);   // 沿"背向太阳"延伸，收敛成尖
+  placeCone(earthPenCone, earthC, _axis, RE, penLen, tipR);
+  earthUmbraCone.visible = earthPenCone.visible = State.showCones && State.showEarthCone;
+  // 月面明暗用的就是这两个锥的参数
+  setConeUniforms(moonMat, earthC, _axis, RE, len, penLen, RE*tipR);
+}
+
+// 环食间隙标注（DOM，投影到屏幕）
+const gapLabel = document.createElement('div');
+Object.assign(gapLabel.style, {
+  position:'fixed', zIndex:'15', pointerEvents:'none', color:'#ffd166',
+  font:'600 13px '+getComputedStyle(document.body).fontFamily,
+  background:'rgba(18,22,48,.75)', padding:'4px 10px', borderRadius:'8px',
+  border:'1px solid rgba(255,209,102,.4)', whiteSpace:'nowrap', display:'none',
+  fontVariantNumeric:'tabular-nums',
+});
+document.body.appendChild(gapLabel);
+function placeGapLabel(tip, surf, gapKm){
+  if (!State.showCones || !State.showMoonCone || !State.showLabels){ gapLabel.style.display='none'; return; }
+  const p = tip.clone().lerp(surf, 0.5).project(camera);
+  if (p.z > 1){ gapLabel.style.display='none'; return; }
+  gapLabel.style.display = 'block';
+  gapLabel.style.left = ((p.x*0.5+0.5)*window.innerWidth + 12) + 'px';
+  gapLabel.style.top  = ((-p.y*0.5+0.5)*window.innerHeight - 14) + 'px';
+  gapLabel.textContent = `锥尖差 ${fmt(gapKm)} 公里够不到地球`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 6. 「小朋友的眼睛」渲染 ═══
+   不用真 3D 相机（0.5° 视场下精度会爆炸）。
+   独立正交相机 + 全屏 quad + 2D 片元着色器，视口精确覆盖 DOM 框。
+   ═══════════════════════════════════════════════════════════════ */
+
+const eyeScene = new THREE.Scene();
+const eyeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const eyeMat = new THREE.ShaderMaterial({
+  vertexShader:EYE_VERT, fragmentShader:EYE_FRAG,
+  depthTest:false, depthWrite:false,
+  uniforms:{
+    uMode:{value:0},
+    uFovHalf:{value:2*DEG},
+    uAspect:{value:1},                       // 视口宽/高，PIP(272×272)=1，全屏随窗口
+    uPxPerRad:{value:1000},                  // 每弧度像素数，星点按像素定粗细
+    uTime:{value:0},
+    uSunAngR:{value:0.00465}, uMoonAngR:{value:0.00452},
+    uMoonOff:{value:new THREE.Vector2(0.1, 0)},
+    uObsc:{value:0}, uSkyB:{value:1}, uStarVis:{value:0},
+    uShadowOff:{value:new THREE.Vector2()}, uUmbraAngR:{value:0.012}, uPenAngR:{value:0.021},
+    uEarthAngR:{value:0.033},
+    // 太阳在「观察者坐标系」(right, up, 朝向观察者) 里的方向 —— 月相/地球相位都靠它
+    uSunLocal:{value:new THREE.Vector3(0,0,1)},
+    uInUmbra:{value:0},        // 月球陷在地球本影里的程度 0..1
+    // 反投影 + 影锥（与主视图 moonMat 共用同一组数）
+    uMoonCenterR:{value:new THREE.Vector3()},
+    uMoonRenderR:{value:1},
+    uBasisRight:{value:new THREE.Vector3(1,0,0)},
+    uBasisUp:{value:new THREE.Vector3(0,1,0)},
+    uBasisToObs:{value:new THREE.Vector3(0,0,1)},
+    uConeBase:{value:new THREE.Vector3()},
+    uConeAxis:{value:new THREE.Vector3(1,0,0)},
+    uConeBaseR:{value:1},
+    uConeUmbraLen:{value:1},
+    uConePenLen:{value:1},
+    uConePenTipR:{value:2.3},
+  },
+});
+const eyeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), eyeMat);
+eyeQuad.frustumCulled = false;
+eyeScene.add(eyeQuad);
+
+const eyeFrame = document.getElementById('eye-frame');
+const eyeZoneEl = document.getElementById('eye-zone');
+
+/** 每帧从派生量更新眼睛着色器并渲染到 DOM 框对应的视口 */
+function renderEyeView(mode, dt){
+  const u = eyeMat.uniforms;
+  u.uMode.value = mode;
+  u.uTime.value += dt;
+  u.uFovHalf.value = (State.eyeFov/2)*DEG;
+
+  if (mode === 0){
+    // 日食天空：月亮相对太阳的角偏移
+    const s = sunDirW;
+    const obsSun = _v1.copy(s);                       // 从观察者看太阳方向 ≈ 地心方向
+    // 屏幕基：right = forward × worldUp，up = right × forward（右手系，z 朝向观察者）
+    _v2.crossVectors(obsSun, _YAXIS).normalize();     // right
+    _v3.crossVectors(_v2, obsSun).normalize();        // up
+    const md = D.moonDirW;
+    const fwd = md.dot(obsSun);
+    // 方向取自「地心」投影，但模长必须换成观察者视角的真实角距 D.obsSep ——
+    // 否则画面上两圆的重叠程度会与读数里的遮挡率对不上（地心与地表差一个地球半径的视差）。
+    let offX = md.dot(_v2)/Math.max(fwd, 0.01);
+    let offY = md.dot(_v3)/Math.max(fwd, 0.01);
+    const offLen = Math.hypot(offX, offY);
+    if (offLen > 1e-9){ offX = offX/offLen*D.obsSep; offY = offY/offLen*D.obsSep; }
+    else { offX = D.obsSep; offY = 0; }
+    u.uMoonOff.value.set(offX, offY);
+    u.uSunAngR.value = D.obsRSun;
+    u.uMoonAngR.value = D.obsRMoon;
+    u.uObsc.value = D.obsObsc;
+    u.uSkyB.value = D.skyB;
+    u.uStarVis.value = D.starVis;
+  } else if (mode === 1){
+    // 月食月面：地影在月面上的偏移与半径
+    const view = D.moonDirW;                          // forward：地球→月球
+    _v2.crossVectors(view, _YAXIS).normalize();       // right
+    _v3.crossVectors(_v2, view).normalize();          // up
+    // 影轴（背日）与月心在垂直面上的偏差
+    const antiSun = _v1.copy(sunDirW).negate();
+    const mPos = moonMesh.position;
+    const foot = antiSun.clone().multiplyScalar(mPos.dot(antiSun));  // 影轴上最近点（渲染坐标）
+    const delta = mPos.clone().sub(foot);                            // 月心偏离影轴（渲染坐标）
+    // ⚠️ 渲染坐标是夸张过的，直接换算出来的角度和物理判定对不上
+    //    （曾导致月全食时 uShadowOff 算成 3.07°，月亮被画在影外，血月完全不出现）。
+    //    方向取自渲染几何，模长一律换成物理量 D.lunSep —— 与 classifyLunar 同源。
+    //    影心相对月心是月心偏移的反方向：月亮偏上，影心就偏下。
+    let sx = -delta.dot(_v2), sy = -delta.dot(_v3);
+    const sl = Math.hypot(sx, sy);
+    if (sl > 1e-9){ sx = sx/sl*D.lunSep; sy = sy/sl*D.lunSep; }
+    else { sx = D.lunSep; sy = 0; }
+    u.uShadowOff.value.set(sx, sy);
+    u.uMoonAngR.value = D.rMoon;
+    u.uUmbraAngR.value = D.lunRU;
+    u.uPenAngR.value = D.lunRP;
+    // 月相：观察者在地球，朝向观察者的轴是「月球→地球」= -view
+    u.uSunLocal.value.set(sunDirW.dot(_v2), sunDirW.dot(_v3), -sunDirW.dot(view));
+    // 反投影用的月球位姿与屏幕基
+    u.uMoonCenterR.value.copy(moonMesh.position);
+    u.uMoonRenderR.value = RM_RENDER * moonMesh.scale.x;
+    u.uBasisRight.value.copy(_v2);
+    u.uBasisUp.value.copy(_v3);
+    u.uBasisToObs.value.copy(view).negate();      // 月球→地球 = 朝向观察者
+    // 影锥参数直接抄主视图月球材质的那一份，保证是同一次几何
+    const mu = moonMat.uniforms;
+    u.uConeBase.value.copy(mu.uConeBase.value);
+    u.uConeAxis.value.copy(mu.uConeAxis.value);
+    u.uConeBaseR.value    = mu.uConeBaseR.value;
+    u.uConeUmbraLen.value = mu.uConeUmbraLen.value;
+    u.uConePenLen.value   = mu.uConePenLen.value;
+    u.uConePenTipR.value  = mu.uConePenTipR.value;
+  } else {
+    u.uEarthAngR.value = angRad(R_EARTH, State.moonDistance);
+    // 观察者在月球、看向地球：朝向观察者的轴是「地球→月球」= moonDirW
+    const fwd = _v1.copy(D.moonDirW).negate();         // forward：月球→地球
+    _v2.crossVectors(fwd, _YAXIS).normalize();        // right
+    _v3.crossVectors(_v2, fwd).normalize();           // up
+    // z 轴朝向观察者（月球）= 地球→月球 = moonDirW
+    u.uSunLocal.value.set(sunDirW.dot(_v2), sunDirW.dot(_v3), sunDirW.dot(D.moonDirW));
+    // 只有真的进了本影，地球才该镶那圈日出日落
+    u.uInUmbra.value = clamp((D.lunRU - D.lunSep)/Math.max(D.rMoon, 1e-6), 0, 1);
+  }
+
+  // 视口 = DOM 框位置（注意：WebGL 视口原点在左下）
+  const r = eyeFrame.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) return;
+  eyeMat.uniforms.uAspect.value = r.width / r.height;   // PIP 非正方形时也校正
+  eyeMat.uniforms.uPxPerRad.value = r.height / (2*u.uFovHalf.value);   // 垂直方向未乘 aspect
+  renderer.setViewport(r.left, window.innerHeight - r.bottom, r.width, r.height);
+  renderer.setScissor(r.left, window.innerHeight - r.bottom, r.width, r.height);
+  renderer.setScissorTest(true);
+  renderer.clearDepth();
+  renderer.render(eyeScene, eyeCam);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 7. UI 层 ═══
+   滑杆 / 按钮 / 旁白打字机 / 时间轴 / 徽章 / 迷你地球 / 模态
+   ═══════════════════════════════════════════════════════════════ */
+
+const $ = id => document.getElementById(id);
+
+// ---- 音效（Web Audio 程序化合成，零文件；首次交互前绝不播放） ----
+const AudioKit = (() => {
+  let ctx = null, master = null, unlocked = false;
+  function ensure(){
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = 0.5;
+    master.connect(ctx.destination);
+  }
+  // 首次用户手势时解锁（浏览器 autoplay 策略）
+  const unlockOnce = () => { ensure(); if (ctx.state === 'suspended') ctx.resume(); unlocked = true; };
+  window.addEventListener('pointerdown', unlockOnce, { once:false });
+  window.addEventListener('keydown', unlockOnce, { once:false });
+
+  function tone(freq, dur=0.1, { type='sine', vol=0.3, attack=0.005, slideTo=null, delay=0 }={}){
+    if (State.muted) return;
+    ensure();
+    if (ctx.state === 'suspended') ctx.resume();
+    const t0 = ctx.currentTime + delay;
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(master);
+    osc.start(t0); osc.stop(t0 + dur + 0.05);
+  }
+  return {
+    pop(){ tone(880, 0.06, { vol:0.18 }); },
+    threshold(){ tone(520, 0.14, { vol:0.2, slideTo:780 }); },
+    success(){ [523.25, 659.25, 783.99].forEach((f,i)=>tone(f, 0.22, { vol:0.24, delay:i*0.11 })); },
+    badge(){
+      tone(1318.5, 1.2, { vol:0.22 });
+      tone(1318.5*3, 1.2, { vol:0.05 });
+      tone(1760, 1.2, { vol:0.10, delay:0.15 });
+    },
+    totality(){
+      if (State.muted) return;
+      ensure();
+      if (ctx.state === 'suspended') ctx.resume();
+      const t0 = ctx.currentTime;
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(48, t0);
+      osc.frequency.linearRampToValueAtTime(70, t0 + 1.6);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.4, t0 + 1.6);
+      g.gain.linearRampToValueAtTime(0.0001, t0 + 1.75);   // 骤停
+      osc.connect(g); g.connect(master);
+      osc.start(t0); osc.stop(t0 + 1.8);
+    },
+    ding(){ tone(1567.98, 0.5, { vol:0.25 }); tone(2093, 0.4, { vol:0.1, delay:0.03 }); },
+    isUnlocked(){ return unlocked; },
+  };
+})();
+
+// ---- 滑杆（高度≥36px，滑块≥28px，实时数值气泡，跨阈值音效+高亮） ----
+function makeSlider(parent, { label, min, max, step=0.001, value, format, onChange, sub='', thresholds=[] }){
+  const row = document.createElement('div');
+  row.className = 'ctl-row';
+  const lab = document.createElement('div');
+  lab.className = 'ctl-label';
+  const vSpan = document.createElement('span');
+  vSpan.className = 'v';
+  lab.innerHTML = `<span>${label}</span>`;
+  lab.appendChild(vSpan);
+  const wrap = document.createElement('div');
+  wrap.className = 'slider-wrap';
+  const input = document.createElement('input');
+  input.type = 'range'; input.min = min; input.max = max; input.step = step; input.value = value;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  wrap.append(input, bubble);
+  row.append(lab, wrap);
+  if (sub){
+    const s = document.createElement('div');
+    s.className = 'ctl-sub'; s.textContent = sub;
+    row.appendChild(s);
+  }
+  parent.appendChild(row);
+
+  let lastCross = null;
+  function refresh(){
+    const v = parseFloat(input.value);
+    const pct = (v - min)/(max - min);
+    input.style.setProperty('--fill', (pct*100)+'%');
+    const txt = format ? format(v) : String(v);
+    vSpan.textContent = txt;
+    bubble.textContent = txt;
+    const w = wrap.clientWidth || 280;
+    bubble.style.left = (pct*(w - 28) + 14) + 'px';
+    // 跨阈值检测
+    for (const th of thresholds){
+      const side = v >= th.at ? 1 : -1;
+      if (lastCross === null) lastCross = {};
+      if (lastCross[th.at] !== undefined && lastCross[th.at] !== side){
+        AudioKit.threshold();
+        if (th.onCross) th.onCross(side);
+      }
+      lastCross[th.at] = side;
+    }
+  }
+  input.addEventListener('input', () => {
+    refresh();
+    onChange(parseFloat(input.value));
+  });
+  input.addEventListener('pointerdown', () => wrap.classList.add('active'));
+  window.addEventListener('pointerup', () => wrap.classList.remove('active'));
+  refresh();
+  return {
+    set(v, fire=false){ input.value = v; refresh(); if (fire) onChange(parseFloat(input.value)); },
+    get(){ return parseFloat(input.value); },
+    el: row,
+  };
+}
+
+function makeButton(parent, { text, onClick, className='btn', title='' }){
+  const b = document.createElement('button');
+  b.className = className;
+  b.textContent = text;
+  b.title = title;
+  b.addEventListener('click', () => { AudioKit.pop(); onClick(); });
+  parent.appendChild(b);
+  return b;
+}
+
+/* 两条影锥各给一个开关：想看几何关系时打开，想安静看天象时关掉。
+   第3/4章与沙盒共用这一个helper。 */
+function addConeToggles(box){
+  makeToggle(box, { label:'🌑 月亮的影锥', value:State.showMoonCone,
+    onChange:v => State.showMoonCone = v });
+  makeToggle(box, { label:'🌍 地球的影锥', value:State.showEarthCone,
+    onChange:v => State.showEarthCone = v });
+}
+
+function makeToggle(parent, { label, value, onChange }){
+  const row = document.createElement('div');
+  row.className = 'toggle-row';
+  const lab = document.createElement('span');
+  lab.textContent = label;
+  const sw = document.createElement('div');
+  sw.className = 'switch' + (value ? ' on' : '');
+  row.append(lab, sw);
+  parent.appendChild(row);
+  row.addEventListener('click', () => {
+    AudioKit.pop();
+    sw.classList.toggle('on');
+    onChange(sw.classList.contains('on'));
+  });
+  return { set(v){ sw.classList.toggle('on', v); }, el:row };
+}
+
+// ---- 旁白打字机（约 45 字/秒，点击跳过/下一句） ----
+const Narrator = (() => {
+  const elBox = $('narrator'), elText = $('narrator-text');
+  let lines = [], idx = 0, chars = 0, tokens = [], totalChars = 0;
+  let typing = false, timer = null, onDone = null, perLine = null;
+  const SPEED = 45;   // 字/秒
+
+  // 解析 **粗体** 与 【提示】 标记
+  function parse(line){
+    const toks = [];
+    const re = /(\*\*[^*]+\*\*|【[^】]+】)/g;
+    let last = 0, m;
+    while ((m = re.exec(line))){
+      if (m.index > last) toks.push({ t:line.slice(last, m.index), k:'' });
+      if (m[0].startsWith('**')) toks.push({ t:m[0].slice(2,-2), k:'b' });
+      else toks.push({ t:m[0], k:'h' });
+      last = re.lastIndex;
+    }
+    if (last < line.length) toks.push({ t:line.slice(last), k:'' });
+    return toks;
+  }
+  function renderChars(n){
+    let html = '', count = 0;
+    for (const tok of tokens){
+      if (count >= n) break;
+      const take = Math.min(tok.t.length, n - count);
+      const piece = tok.t.slice(0, take);
+      html += tok.k === 'b' ? `<b>${piece}</b>`
+            : tok.k === 'h' ? `<span style="color:var(--accent)">${piece}</span>`
+            : piece;
+      count += take;
+    }
+    elText.innerHTML = html;
+  }
+  function tick(){
+    if (!typing) return;
+    chars = Math.min(totalChars, chars + Math.max(1, Math.round(SPEED/30)));
+    renderChars(chars);
+    if (chars >= totalChars){
+      typing = false;
+      if (idx >= lines.length - 1){ if (onDone) onDone(); }
+    } else {
+      timer = setTimeout(tick, 1000/30);
+    }
+  }
+  function showLine(){
+    clearTimeout(timer);
+    tokens = parse(lines[idx] || '');
+    totalChars = tokens.reduce((s,t)=>s+t.t.length, 0);
+    chars = 0; typing = true;
+    if (perLine) perLine(idx, lines[idx]);
+    tick();
+  }
+  function advance(){
+    if (typing){                       // 第一次点：直接全显
+      clearTimeout(timer); typing = false;
+      chars = totalChars; renderChars(chars);
+      if (idx >= lines.length - 1){ if (onDone) onDone(); }
+      return;
+    }
+    if (idx < lines.length - 1){ idx++; showLine(); }
+  }
+  elBox.addEventListener('click', advance);
+  $('narrator-next').addEventListener('click', e => { e.stopPropagation(); AudioKit.pop(); advance(); });
+
+  return {
+    say(newLines, opts={}){
+      lines = newLines; idx = 0;
+      onDone = opts.onDone || null;
+      perLine = opts.perLine || null;
+      elBox.classList.remove('panel-hidden');
+      showLine();
+    },
+    hide(){ clearTimeout(timer); typing = false; elBox.classList.add('panel-hidden'); },
+    skipAll(){ if (typing){ clearTimeout(timer); typing=false; chars=totalChars; renderChars(chars); } },
+    currentLine(){ return lines[idx] || ''; },
+  };
+})();
+
+// ---- 时间轴（刮擦 + 播放 + 倍速） ----
+const Timeline = (() => {
+  const panel = $('timeline-panel'), track = $('tl-track'),
+        fill = $('tl-fill'), thumb = $('tl-thumb'),
+        playBtn = $('tl-play'), label = $('tl-label');
+  let labelFn = null, scrubbing = false;
+  const SPEEDS = [1, 2, 0.5];
+
+  function refresh(){
+    const pct = State.time*100;
+    fill.style.width = pct+'%';
+    thumb.style.left = pct+'%';
+    playBtn.textContent = State.playing ? '⏸' : '▶';
+    if (labelFn) label.textContent = labelFn(State.time);
+  }
+  function seek(clientX){
+    const r = track.getBoundingClientRect();
+    State.time = clamp((clientX - r.left)/r.width, 0, 1);
+    refresh();
+  }
+  track.addEventListener('pointerdown', e => {
+    scrubbing = true; track.setPointerCapture(e.pointerId);
+    State.playing = false; seek(e.clientX);
+  });
+  track.addEventListener('pointermove', e => { if (scrubbing) seek(e.clientX); });
+  track.addEventListener('pointerup', () => scrubbing = false);
+  playBtn.addEventListener('click', () => { AudioKit.pop(); State.playing = !State.playing; refresh(); });
+  $('tl-back').addEventListener('click', () => { AudioKit.pop(); State.time = 0; refresh(); });
+  $('tl-speed').addEventListener('click', e => {
+    AudioKit.pop();
+    const i = SPEEDS.indexOf(State.speed);
+    State.speed = SPEEDS[(i+1) % SPEEDS.length];
+    e.target.textContent = State.speed + '×';
+  });
+  return {
+    show(lf){ labelFn = lf; panel.classList.remove('panel-hidden'); refresh(); },
+    hide(){ panel.classList.add('panel-hidden'); State.playing = false; },
+    refresh,
+    set(t){ State.time = t; refresh(); },
+  };
+})();
+
+// ---- 徽章系统（localStorage）+ 章节导航 ----
+const NAV_ITEMS = [
+  { num:'序', title:'三个球' },
+  { num:'一', title:'一样大的巧合' },
+  { num:'二', title:'影子的秘密' },
+  { num:'三', title:'日食三兄弟' },
+  { num:'四', title:'月食与血月' },
+  { num:'五', title:'为什么不是每个月' },
+  { num:'☆', title:'自由观测台' },
+];
+let navDots = [];
+function buildNav(){
+  const nav = $('chapter-nav');
+  nav.innerHTML = '';
+  const home = document.createElement('button');
+  home.id = 'nav-home'; home.textContent = '🏠'; home.title = '回序章';
+  home.addEventListener('click', () => { AudioKit.pop(); goChapter(0); });
+  nav.appendChild(home);
+  navDots = NAV_ITEMS.map((it, i) => {
+    const d = document.createElement('button');
+    d.className = 'dot';
+    d.title = it.num === '☆' ? '沙盒·自由观测台' : `第${it.num}章·${it.title}`;
+    d.addEventListener('click', () => { AudioKit.pop(); goChapter(i); });
+    nav.appendChild(d);
+    return d;
+  });
+  refreshNav();
+}
+function refreshNav(){
+  navDots.forEach((d, i) => {
+    d.classList.toggle('current', i === State.chapter);
+    if (i >= 1 && i <= 5){
+      const b = BADGES[i-1];
+      d.classList.toggle('done', State.badges[i-1]);
+      d.style.setProperty('--badge-c', b.color);
+      d.textContent = State.badges[i-1] ? b.emoji : '';
+    } else if (i === 6){
+      const locked = !State.badges[5];
+      d.classList.toggle('locked', locked);
+      d.classList.toggle('done', State.badges[5]);
+      d.textContent = State.badges[5] ? '🎓' : '';
+    } else {
+      d.textContent = i === State.chapter ? '' : '';
+    }
+  });
+}
+function awardBadge(i){
+  if (State.badges[i]) return;
+  State.badges[i] = true;
+  saveProgress();
+  refreshNav();
+  const b = BADGES[i];
+  const toast = $('badge-toast');
+  toast.querySelector('.n').textContent = `${b.emoji} ${b.name}`;
+  toast.style.borderColor = b.color;
+  toast.classList.add('show');
+  AudioKit.badge();
+  setTimeout(() => toast.classList.remove('show'), 2800);
+  // 五章全过 → 毕业典礼徽章 + 解锁沙盒
+  if (i < 5 && State.badges.slice(0,5).every(Boolean) && !State.badges[5]){
+    setTimeout(() => { awardBadge(5); showGraduation(); }, 3200);
+  }
+}
+
+// ---- 迷你地球（朝向太阳一面的正射投影，点选站位） ----
+const MiniGlobe = (() => {
+  const cv = $('miniglobe'), cx = cv.getContext('2d');
+  // 影斑采样缓冲：96×96 足够平滑，每帧约 9k 次 coneShade，开销可忽略
+  const SH_N = 96;
+  const shCv = document.createElement('canvas'); shCv.width = shCv.height = SH_N;
+  const shCx = shCv.getContext('2d');
+  const _mgP = new THREE.Vector3();
+  let _shImg = null;
+  const shadowImg = () => (_shImg || (_shImg = shCx.createImageData(SH_N, SH_N)));
+  const panel = $('miniglobe-panel');
+  const W = cv.width, C = W/2, R = W*0.44;
+
+  function basis(){
+    const s = sunDirW.clone();
+    const right = new THREE.Vector3().crossVectors(_YAXIS, s).normalize();
+    const up = new THREE.Vector3().crossVectors(s, right).normalize();
+    return { s, right, up };
+  }
+  function project(dir, b){
+    const cosr = dir.dot(b.s);
+    if (cosr <= 0.02) return null;      // 背面
+    return { x: C + dir.dot(b.right)*R, y: C - dir.dot(b.up)*R, cosr };
+  }
+  function draw(){
+    const b = basis();
+    cx.clearRect(0,0,W,W);
+    // 地球圆盘
+    const g = cx.createRadialGradient(C-R*0.3, C-R*0.35, R*0.1, C, C, R);
+    g.addColorStop(0, '#3d78c4'); g.addColorStop(0.75, '#1c4f8f'); g.addColorStop(1, '#0d2a52');
+    cx.fillStyle = g;
+    cx.beginPath(); cx.arc(C, C, R, 0, Math.PI*2); cx.fill();
+    // 经纬网格
+    cx.strokeStyle = 'rgba(154,164,200,0.18)'; cx.lineWidth = 1;
+    for (let k=1;k<4;k++){
+      cx.beginPath(); cx.arc(C, C, R*k/4, 0, Math.PI*2); cx.stroke();
+    }
+    cx.beginPath(); cx.moveTo(C-R, C); cx.lineTo(C+R, C);
+    cx.moveTo(C, C-R); cx.lineTo(C, C+R); cx.stroke();
+    /* 影子（日食章节）：逐点把小地球上的位置反投影回地表的 3D 点，
+       用与主视图、与 PIP 完全相同的 coneShade 采样。
+       于是"你站在哪里"这个小圆盘上的影斑，和大画面里地球上那块影子、
+       以及小朋友抬头看到的太阳缺口，说的是同一件事 —— 图钉进出影子，
+       右下角的天空就跟着变。 */
+    if ((State.chapter === 3 || State.chapter === 6) && earthMat.uniforms.uConeUmbraLen.value > 0){
+      const u = earthMat.uniforms, Re = RE_RENDER*earthGroup.scale.x;
+      const img = shadowImg(), d = img.data;
+      for (let j=0;j<SH_N;j++) for (let i=0;i<SH_N;i++){
+        const nx = (i/(SH_N-1))*2-1, ny = 1-(j/(SH_N-1))*2;
+        const r2 = nx*nx+ny*ny, k = (j*SH_N+i)*4;
+        if (r2 > 1){ d[k+3] = 0; continue; }
+        _mgP.copy(b.s).multiplyScalar(Math.sqrt(1-r2))
+            .addScaledVector(b.right, nx).addScaledVector(b.up, ny)
+            .multiplyScalar(Re).add(earthGroup.position);
+        const sh = coneShadeAt(_mgP, u.uConeBase.value, u.uConeAxis.value, u.uConeBaseR.value,
+                               u.uConeUmbraLen.value, u.uConePenLen.value, u.uConePenTipR.value);
+        d[k]=18; d[k+1]=12; d[k+2]=46; d[k+3] = Math.round(230*sh);
+      }
+      shCx.putImageData(img, 0, 0);
+      cx.save();
+      cx.beginPath(); cx.arc(C, C, R, 0, Math.PI*2); cx.clip();
+      cx.drawImage(shCv, C-R, C-R, R*2, R*2);
+      cx.restore();
+    }
+    // 观察者图钉
+    const op = project(D.obsDir, b);
+    if (op){
+      cx.fillStyle = '#ffd166';
+      cx.beginPath(); cx.arc(op.x, op.y, 7, 0, Math.PI*2); cx.fill();
+      cx.strokeStyle = 'rgba(255,209,102,0.55)'; cx.lineWidth = 3;
+      cx.beginPath(); cx.arc(op.x, op.y, 13, 0, Math.PI*2); cx.stroke();
+    } else {
+      $('miniglobe-hint').textContent = '你站在背面啦 —— 点一下这边，回到朝向月亮的一面';
+    }
+    // 边缘描边
+    cx.strokeStyle = 'rgba(154,164,200,0.4)'; cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(C, C, R, 0, Math.PI*2); cx.stroke();
+  }
+  cv.addEventListener('pointerdown', e => {
+    const r = cv.getBoundingClientRect();
+    const x = (e.clientX - r.left)/r.width*W, y = (e.clientY - r.top)/r.height*W;
+    const nx = (x - C)/R, ny = -(y - C)/R;
+    let r2 = nx*nx + ny*ny;
+    if (r2 > 1){ const s = 1/Math.sqrt(r2); }   // 允许边缘外点击（钳到边缘）
+    const sx = r2 > 1 ? nx/Math.sqrt(r2) : nx;
+    const sy = r2 > 1 ? ny/Math.sqrt(r2) : ny;
+    const z = Math.sqrt(Math.max(0, 1 - sx*sx - sy*sy));
+    const b = basis();
+    const dir = b.s.clone().multiplyScalar(z)
+      .addScaledVector(b.right, sx).addScaledVector(b.up, sy).normalize();
+    State.observer.lat = Math.asin(clamp(dir.dot(b.up), -1, 1))/DEG;
+    State.observer.lon = Math.atan2(dir.dot(b.right), Math.max(dir.dot(b.s), 1e-4))/DEG;
+    AudioKit.pop();
+    $('miniglobe-hint').textContent = '好，你现在就站在这里';
+    notify('observer');
+  });
+  return { draw, show(){ panel.classList.remove('panel-hidden'); }, hide(){ panel.classList.add('panel-hidden'); } };
+})();
+
+// ---- 模态 ----
+function showModal({ emoji='', title='', html='', buttons=[], facts=[] }){
+  const card = $('modal-card');
+  card.innerHTML =
+    (emoji ? `<span class="emoji">${emoji}</span>` : '') +
+    (title ? `<h2>${title}</h2>` : '') +
+    html +
+    (facts.length ? `<div class="facts">${facts.map(f=>`<div class="fact">${f.t}<b>${f.v}</b></div>`).join('')}</div>` : '') +
+    `<div id="modal-btns"></div>`;
+  const btnBox = card.querySelector('#modal-btns');
+  for (const b of buttons){
+    const el = document.createElement('button');
+    el.className = 'btn' + (b.primary ? ' primary' : '');
+    el.textContent = b.text;
+    el.addEventListener('click', () => { AudioKit.pop(); if (b.onClick) b.onClick(); if (b.close !== false) hideModal(); });
+    btnBox.appendChild(el);
+  }
+  $('modal').classList.add('show');
+}
+function hideModal(){ $('modal').classList.remove('show'); }
+
+// ---- 章节标题 ----
+function chapterSplash(num, title, goal){
+  const s = $('chapter-splash');
+  s.querySelector('.num').textContent = num;
+  s.querySelector('.ttl').textContent = title;
+  s.querySelector('.goal').textContent = goal;
+  s.classList.add('show');
+  setTimeout(() => s.classList.remove('show'), 2100);
+}
+
+function hitFlash(){
+  const f = $('hit-flash');
+  f.classList.remove('go');
+  void f.offsetWidth;      // 重启动画
+  f.classList.add('go');
+}
+
+// ---- 相机预设按钮 ----
+function setCamPresets(list){
+  const box = $('cam-presets');
+  box.innerHTML = '';
+  for (const p of list){
+    // pos/target 允许传函数：目标天体会移动的章节（如第5章地球公转）
+    // 必须在「点击时」求值，否则会锁死在 setup 那一刻的位置。
+    makeButton(box, { text:p.label, onClick:()=>{
+      tweenCamera(typeof p.pos === 'function' ? p.pos() : p.pos,
+                  typeof p.target === 'function' ? p.target() : p.target, 1.2);
+      if (p.after) p.after();     // 章节可借此切换跟随模式等
+    }});
+  }
+}
+
+// ---- 读数面板 ----
+const readoutUpdaters = [];
+function buildReadouts(rows){
+  const box = $('readouts');
+  box.innerHTML = '<div id="eclipse-type-badge">—</div>';
+  readoutUpdaters.length = 0;
+  const spans = {};
+  for (const r of rows){
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<span class="k">${r.k}</span><span class="v" data-k="${r.k}">—</span>`;
+    box.appendChild(row);
+    spans[r.k] = row.querySelector('.v');
+    readoutUpdaters.push(() => { spans[r.k].textContent = r.f(); });
+  }
+  box.classList.remove('panel-hidden');
+}
+function updateReadouts(){
+  for (const u of readoutUpdaters) u();
+  const badge = $('eclipse-type-badge');
+  if (badge) badge.textContent = eclipseTypeText();
+}
+function eclipseTypeText(){
+  if (State.chapter === 4){
+    return { none:'现在没有月食', penumbral:'👻 半影月食', partial:'🌗 月偏食', total:'🔴 月全食' }[D.lunType];
+  }
+  return { none:'现在没有日食', partial:'🌒 日偏食', total:'🌑 日全食', annular:'💍 日环食' }[D.obsType] || '—';
+}
+
+// ---- 控件面板辅助 ----
+const controlsBox = $('controls');
+function clearControls(){ controlsBox.innerHTML = ''; }
+function showControls(title){
+  clearControls();
+  if (title){
+    const t = document.createElement('div');
+    t.id = 'controls-title';
+    t.textContent = title;
+    controlsBox.appendChild(t);
+  }
+  controlsBox.classList.remove('panel-hidden');
+}
+function hideControls(){ controlsBox.classList.add('panel-hidden'); }
+
+// ---- 尺度提示 ----
+function updateScaleNote(){
+  const el = $('scale-note');
+  if (State.chapter === 2){ el.textContent = '🔍 这是你房间里的一盏灯'; return; }
+  el.innerHTML = `🔍 图中天体已放大 <b>${fmt(D.exag)}</b> 倍<br>距离已缩短 <b>${fmt(D.comp)}</b> 倍<br><span style="opacity:.7">角度与遮挡比例都是真实的</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 8. 音效 ═══ 已并入第 7 节（AudioKit，程序化合成，零文件）
+
+   ═══ 9. 章节定义 ═══
+   每章：setup() / teardown() / update(dt) / 旁白 / 挑战。
+   ═══════════════════════════════════════════════════════════════ */
+
+// ---- 共用：天体点击（序章名片卡） ----
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let clickHandlers = [];            // [{mesh, fn}]
+function pickAt(clientX, clientY){
+  pointer.set((clientX/window.innerWidth)*2-1, -(clientY/window.innerHeight)*2+1);
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(clickHandlers.map(h=>h.mesh), false);
+  if (hits.length){
+    const h = clickHandlers.find(x => x.mesh === hits[0].object);
+    if (h) h.fn(hits[0]);
+  }
+  return hits.length > 0;
+}
+// 区分拖动与点击（OrbitControls 也在用 pointer）
+let _downX = 0, _downY = 0;
+renderer.domElement.addEventListener('pointerdown', e => { _downX = e.clientX; _downY = e.clientY; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (Math.hypot(e.clientX-_downX, e.clientY-_downY) < 6) pickAt(e.clientX, e.clientY);
+});
+
+// ---- 共用：重置场景到"干净太空" ----
+function resetStage(){
+  spaceGroup.visible = true;
+  lampGroup.visible = false;
+  ch5Group.visible = false;
+  stars.visible = true;
+  earthGroup.position.set(0,0,0);
+  earthGroup.scale.setScalar(1);
+  moonMesh.scale.setScalar(1);
+  sunMesh.scale.setScalar(1);
+  earthMat.uniforms.uEclipseOn.value = 0;
+  moonMat.uniforms.uEclipseOn.value = 0;
+  atmoMat.uniforms.uBlood.value = 0;
+  atmoMat.uniforms.uBoost.value = 0;
+  cloudMat.uniforms.uDim.value = 1;
+  moonUmbraCone.visible = moonPenCone.visible = false;
+  earthUmbraCone.visible = earthPenCone.visible = false;
+  coneTipMark.visible = false;
+  gapDash.visible = false;
+  gapLabel.style.display = 'none';
+  observerMark.visible = false;
+  earthOrbitLine.visible = true;
+  moonOrbitLine.visible = false;
+  MiniGlobe.hide();
+  $('eyepip').classList.add('panel-hidden');
+  $('readouts').classList.add('panel-hidden');
+  $('ch1-left').classList.add('panel-hidden');
+  $('ch5-counter').classList.add('panel-hidden');
+  $('ch5-counter').style.display = '';
+  document.body.classList.remove('eye-full');
+  State.eyeViewExpanded = false;
+  State.eyeFov = 4;                  // 默认视场；月食章节会调窄（见 Ch4.setup）
+  Timeline.hide();
+  hideControls();
+  Narrator.hide();
+  setCamPresets([]);
+  clickHandlers = [];
+  readoutUpdaters.length = 0;
+  controls.enableRotate = true;
+}
+
+// ---- 序章 · 三个球 ----
+const ChPrologue = {
+  title:'三个球', num:'序章', goal:'认识太阳、地球、月亮',
+  _orbit: 0.6,
+  setup(){
+    resetStage();
+    State.moonDistance = D_MOON_MEAN;
+    moonOrbitLine.visible = State.showOrbits;
+    updateMoonOrbitLine();
+    tweenCamera(new THREE.Vector3(6, 16, 38), new THREE.Vector3(0,0,0), 1.4);
+    setCamPresets([
+      { label:'🌞 太阳', pos:new THREE.Vector3(-52, 10, 42), target:sunMesh.position.clone() },
+      { label:'🌍 地球', pos:new THREE.Vector3(4, 8, 18), target:new THREE.Vector3(0,0,0) },
+      { label:'🌙 月亮', pos:new THREE.Vector3(-10, 4, 24), target:new THREE.Vector3(-16,0,0) },
+      { label:'🔭 全景', pos:new THREE.Vector3(6, 16, 38), target:new THREE.Vector3(0,0,0) },
+    ]);
+    // 天体名片卡
+    const cards = {
+      sun:{ emoji:'☀️', name:'太阳', text:'一个巨大的火球。它有 <b>109 个地球</b>那么宽。它是所有光的来源。',
+        facts:[{t:'宽度',v:'139.2 万 km'},{t:'表面温度',v:'约 5500 ℃'}] },
+      earth:{ emoji:'🌍', name:'地球', text:'我们住的地方。它一边转圈圈，一边绕着太阳跑。',
+        facts:[{t:'宽度',v:'12,742 km'},{t:'一圈',v:'365 天'}] },
+      moon:{ emoji:'🌙', name:'月亮', text:'地球唯一的伙伴。它绕着地球转，27 天转一圈。它自己不会发光——我们看到的月光，其实是太阳的光。',
+        facts:[{t:'宽度',v:'3,475 km'},{t:'离地球',v:'约 38 万 km'}] },
+    };
+    for (const key of ['sun','earth','moon']){
+      const mesh = { sun:sunMesh, earth:earthMesh, moon:moonMesh }[key];
+      clickHandlers.push({ mesh, fn:() => {
+        const c = cards[key];
+        showModal({ emoji:c.emoji, title:c.name, html:`<p>${c.text}</p>`, facts:c.facts,
+          buttons:[{ text:'知道啦', primary:true }] });
+      }});
+    }
+    // 控件：尺度旋钮 + 开始按钮
+    showControls('先玩一个旋钮');
+    makeSlider(controlsBox, {
+      label:'天体放大倍数', min:0, max:0.88, step:0.01, value:State.scaleKnob,
+      format:v => `×${fmt(Math.pow(EXAG_MAX, v))}`,
+      sub:'拖到最左边，看看它们真正的样子',
+      onChange:v => { State.scaleKnob = v; },
+    });
+    makeButton(controlsBox, { text:'准备好了，开始！→', className:'btn primary',
+      onClick:() => goChapter(1) });
+    Narrator.say([
+      '小朋友，抬头看看天空。',
+      '太阳每天都在，月亮每晚都在。',
+      '可是有那么几天，太阳会突然被咬掉一口，月亮会慢慢变红。',
+      '你猜，是谁干的？',
+      '【点点这三个球，先认识一下它们】',
+      '注意哦，这三个球被我放大了很多倍，不然你根本看不见它们。拖动左下角的滑杆，看看它们真正的样子。',
+    ]);
+    updateScaleNote();
+  },
+  update(dt){
+    this._orbit += dt*0.5;
+    const d = moonRenderDist(State.moonDistance);
+    const p = moonPosition(this._orbit, d, 0, 0);
+    moonMesh.position.set(p.x, p.z, -p.y);
+    D.moonDirW = D.moonDirW || new THREE.Vector3();
+    D.moonDirW.copy(moonMesh.position).normalize();
+    // 尺度旋钮：只缩放天体半径（距离是布置用的，不缩放）
+    const f = Math.pow(EXAG_MAX, State.scaleKnob - 0.62);
+    earthGroup.scale.setScalar(f);
+    moonMesh.scale.setScalar(f);
+    sunMesh.scale.setScalar(f);
+    sunChroma.scale.setScalar(f);
+    earthMesh.rotation.y += dt*0.12;
+    cloudMesh.rotation.y += dt*0.15;
+    moonMesh.rotation.y += dt*0.1;
+    // 和第3/4章、沙盒一样把光照方向同步给各材质。
+    // 漏掉这一句，序章就会一直用 uSunDirW 的初始值给地球打光。
+    syncBodyUniforms();
+    updateScaleNote();
+  },
+  teardown(){ earthGroup.scale.setScalar(1); moonMesh.scale.setScalar(1); sunMesh.scale.setScalar(1); sunChroma.scale.setScalar(1); },
+};
+
+// ---- 第1章 · 一样大的巧合 ----
+const Ch1 = {
+  title:'一样大的巧合', num:'第一章', goal:'大而远 和 小而近，看起来可以一样大',
+  _won:false, _saidSmall:false, _saidBig:false,
+  setup(){
+    resetStage();
+    this._won = false; this._saidSmall = false; this._saidBig = false;
+    spaceGroup.visible = false;             // 本章画面 = 全屏眼睛视图 + 左侧 2D 对比
+    $('ch1-left').classList.remove('panel-hidden');
+    State.moonRadiusScale = 0.6; State.moonDistScale = 1.0;   // 起始：月亮明显太小
+    showControls('调一调月亮');
+    makeSlider(controlsBox, {
+      label:'月亮有多大', min:0.3, max:2.0, step:0.01, value:State.moonRadiusScale,
+      format:v => `${v.toFixed(2)}× 真实大小`,
+      onChange:v => { State.moonRadiusScale = v; },
+    });
+    makeSlider(controlsBox, {
+      label:'月亮有多远', min:0.5, max:2.0, step:0.01, value:State.moonDistScale,
+      format:v => `${v.toFixed(2)}× 真实距离`,
+      sub:'远小近大 —— 远近也会影响看起来的大小',
+      onChange:v => { State.moonDistScale = v; },
+    });
+    Narrator.say([
+      '太阳有多大呢？如果太阳是一个大西瓜，月亮就只有一粒芝麻那么大。',
+      '太阳比月亮大 400 倍。',
+      '可是你看看右边——这是你抬头看到的天空。太阳和月亮，看起来居然差不多大！',
+      '为什么？因为太阳虽然大了 400 倍，但它也远了 400 倍。',
+      '大 400 倍，远 400 倍，一抵消，就一样大了。',
+      '这是一件特别巧的事。整个太阳系，只有站在地球上，才能看到这么刚刚好的巧合。',
+      '【试试看：拖动滑杆，把月亮调到刚好能盖住太阳】',
+    ]);
+  },
+  update(dt){
+    const rS = angRad(R_SUN, D_SUN_MEAN);
+    const rM = angRad(R_MOON*State.moonRadiusScale, D_MOON_MEAN*State.moonDistScale);
+    const ratio = rM/rS;
+    const obsc = obscuration(rS, rM, 0);
+    // 全屏眼睛视图
+    const u = eyeMat.uniforms;
+    u.uMode.value = 0;
+    u.uTime.value += dt;
+    u.uFovHalf.value = 1.6*DEG;
+    u.uSunAngR.value = rS; u.uMoonAngR.value = rM;
+    u.uMoonOff.value.set(0, 0);
+    u.uObsc.value = obsc;
+    u.uSkyB.value = skyBrightness(obsc);
+    u.uStarVis.value = starVisibility(u.uSkyB.value);
+    D.eyeMode = 'full';        // 主循环在 composer 之后铺满全屏渲染
+    // 左侧：真实大小对比图
+    this.drawCompare(ratio);
+    $('ch1-note').innerHTML = `右边天空里：月亮看起来是太阳的 <b style="color:var(--accent)">${ratio.toFixed(2)}</b> 倍大<br>（真实值就在这个读数附近 —— 调到 1.00 试试）`;
+    // 挑战：±3% 容差
+    if (!this._won && Math.abs(ratio-1) <= 0.03){
+      this._won = true;
+      AudioKit.success();
+      awardBadge(0);
+      Narrator.say([
+        '就是这里！月亮真正的大小，就刚好在这个位置。',
+        '再小一点点，太阳就永远盖不满了——那样只会剩一圈金边。记住这个样子，等一下你会再见到它。',
+      ]);
+    } else if (this._won === false){
+      if (ratio < 0.8 && !this._saidSmall){ this._saidSmall = true;
+        Narrator.say(['月亮太小了，盖不住——这样只会剩一圈金边。（记住这个样子，等一下你会再见到它）']); }
+      if (ratio > 1.5 && !this._saidBig){ this._saidBig = true;
+        Narrator.say(['月亮太大了！这样会把太阳盖得严严实实，连太阳周围那圈漂亮的光都看不到了。']); }
+    }
+  },
+  drawCompare(ratio){
+    const cv = $('ch1-canvas'), cx = cv.getContext('2d');
+    const W = cv.width;
+    cx.clearRect(0,0,W,W);
+    // 太阳（按真实比例：占满画布宽度的一半）
+    const Rs = W*0.42;
+    const g = cx.createRadialGradient(W/2, W/2, Rs*0.1, W/2, W/2, Rs);
+    g.addColorStop(0, '#fff4d6'); g.addColorStop(0.7, '#ffb547'); g.addColorStop(1, '#c1440e');
+    cx.fillStyle = g;
+    cx.beginPath(); cx.arc(W/2, W/2, Rs, 0, Math.PI*2); cx.fill();
+    cx.fillStyle = 'rgba(255,244,214,0.9)';
+    cx.font = '600 26px '+getComputedStyle(document.body).fontFamily;
+    cx.textAlign = 'center';
+    cx.fillText('太阳', W/2, W/2);
+    // 月亮：真实直径比 1/400.6 → 画成小点（太小，标注放大说明）
+    const Rm = Rs/400.6;                       // ≈ 0.75px
+    cx.fillStyle = '#c8c4bc';
+    cx.beginPath(); cx.arc(W-46, 46, Math.max(Rm, 3), 0, Math.PI*2); cx.fill();
+    cx.strokeStyle = 'rgba(200,196,188,0.6)'; cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(W-46, 46, 14, 0, Math.PI*2); cx.stroke();
+    cx.fillStyle = '#9aa4c8';
+    cx.font = '20px '+getComputedStyle(document.body).fontFamily;
+    cx.textAlign = 'right';
+    cx.fillText('月亮（按真实大小，', W-16, 86);
+    cx.fillText(`应该只有 ${(Rm*2).toFixed(1)} 像素宽）`, W-16, 110);
+  },
+  teardown(){ spaceGroup.visible = true; },
+};
+
+// ---- 第2章 · 影子的秘密 ----
+const Ch2 = {
+  title:'影子的秘密', num:'第二章', goal:'影子有两层：本影和半影',
+  _won:false, _saidRing:false, dragging:false,
+  setup(){
+    resetStage();
+    spaceGroup.visible = false;
+    stars.visible = false;
+    lampGroup.visible = true;
+    this._won = false; this._saidRing = false;
+    State.lampR = 1.15; State.ballX = 0.5;
+    lampState.lampR = State.lampR;
+    tweenCamera(new THREE.Vector3(-2, 7, 26), new THREE.Vector3(0,0,0), 1.2);
+    setCamPresets([
+      { label:'🔦 侧面看', pos:new THREE.Vector3(-2, 7, 26), target:new THREE.Vector3(0,0,0) },
+      { label:'🧱 墙上视角', pos:new THREE.Vector3(WALL_X-1.6, 0, 0.01), target:new THREE.Vector3(WALL_X,0,0) },
+      { label:'⬆️ 俯视', pos:new THREE.Vector3(0, 26, 0.01), target:new THREE.Vector3(0,0,0) },
+    ]);
+    // 小球拖动
+    clickHandlers.push({ mesh:ballMesh, fn:() => {} });
+    renderer.domElement.addEventListener('pointerdown', this._pd);
+    renderer.domElement.addEventListener('pointermove', this._pm);
+    renderer.domElement.addEventListener('pointerup', this._pu);
+    showControls('玩一玩影子');
+    makeSlider(controlsBox, {
+      label:'灯有多大', min:0.05, max:2.3, step:0.01, value:State.lampR,
+      format:v => v <= 0.08 ? '一个小点' : `${v.toFixed(2)}×`,
+      sub:'试试把灯缩成一个小点',
+      thresholds:[{ at:0.09, onCross:side => {
+        if (side < 0) Narrator.say(['看！灯变成一个小点，半影不见了。','影子只剩下一整块黑的。因为从一个点发出的光，要么被挡住，要么没被挡住，没有"挡一半"。']);
+      }}],
+      onChange:v => { State.lampR = v; },
+    });
+    makeButton(controlsBox, { text:'🧱 切到墙上视角', onClick:() =>
+      tweenCamera(new THREE.Vector3(WALL_X-1.6, 0, 0.01), new THREE.Vector3(WALL_X,0,0), 1.2) });
+    Narrator.say([
+      '我们先不看天空，来玩一下影子。',
+      '这是一盏台灯，这是一个小球，这是一面墙。',
+      '你看墙上的影子——它不是一整块黑的。',
+      '中间那块，最黑最黑，一点光都照不进来。这叫**本影**。',
+      '边上那圈，灰灰的，还有一点点光。这叫**半影**。',
+      '为什么会有两层呢？因为灯不是一个小点，它是有大小的。',
+      '【试试看：把灯变小，变成一个小点】',
+      '【再试试：抓住小球，把它往灯那边拖】',
+    ]);
+  },
+  _pd(e){
+    pointer.set((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+    raycaster.setFromCamera(pointer, camera);
+    if (raycaster.intersectObject(ballMesh, false).length){
+      Ch2.dragging = true; controls.enabled = false;
+    }
+  },
+  _pm(e){
+    if (!Ch2.dragging) return;
+    pointer.set((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+    raycaster.setFromCamera(pointer, camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
+    const hit = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(plane, hit)){
+      State.ballX = clamp(hit.x, LAMP_X+1.8, WALL_X-1.6);
+    }
+  },
+  _pu(){ if (Ch2.dragging){ Ch2.dragging = false; controls.enabled = true; } },
+  update(dt){
+    const RL = State.lampR, RB = BALL_R;
+    lampDisc.scale.setScalar(RL/1.15);
+    lampGlow.scale.setScalar(6 + RL*3);
+    ballMesh.position.set(State.ballX, 0, 0);
+    wallMat.uniforms.uLampR.value = RL;
+    wallMat.uniforms.uBallP.value.copy(ballMesh.position);
+    // 台灯的影锥（渲染坐标直接套 5.3 公式）
+    const axis = new THREE.Vector3(1,0,0);
+    if (RL > RB*1.02){
+      const Dlb = State.ballX - LAMP_X;
+      const L = RB*Dlb/(RL-RB);                     // 本影锥长（从球心算）
+      placeCone(lampUmbraCone, ballMesh.position, axis, RB, Math.min(L, WALL_X-State.ballX+2), 0);
+      lampUmbraCone.visible = true;
+      const tipX = State.ballX + L;
+      const umbraOnWall = tipX >= WALL_X;
+      // 半影张开率同样按物理来：这个场景没有尺度夸张，斜率就是 tan(半影半角)=(RL+RB)/D
+      const lampPenLen = WALL_X-State.ballX+2.5;
+      placeCone(lampPenCone, ballMesh.position, axis, RB, lampPenLen,
+                penTipRatio(RB, lampPenLen, Math.atan((RL+RB)/Dlb), 1, 1));
+      lampPenCone.visible = true;
+      // 本影够不到墙 → 墙上只剩灰环（日环食原理！）
+      if (!umbraOnWall && !this._saidRing){
+        this._saidRing = true;
+        AudioKit.threshold();
+        hitFlash();
+        Narrator.say([
+          '咦，墙上最黑的那块，不见了！',
+          '影子的尖尖够不到墙。这时候墙上只剩下一圈灰灰的影子，中间反而是亮的。',
+          '记住这个——待会儿在天上，你会看到一模一样的事情。',
+        ]);
+      }
+      if (!this._won && !umbraOnWall && tipX < WALL_X-0.6){
+        this._won = true; AudioKit.success(); awardBadge(1);
+      }
+    } else {
+      // 点光源：没有本影锥（半影消失）
+      lampUmbraCone.visible = false;
+      lampPenCone.visible = false;
+    }
+  },
+  teardown(){
+    renderer.domElement.removeEventListener('pointerdown', this._pd);
+    renderer.domElement.removeEventListener('pointermove', this._pm);
+    renderer.domElement.removeEventListener('pointerup', this._pu);
+    this.dragging = false;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   日–地–月统一轨道模型 —— 全作唯一摆放月球的地方
+   ───────────────────────────────────────────────────────────────
+   State.time ∈ [0,1] 就是一个完整的朔望月：
+     0 / 1 = 朔（新月，月球在日地之间 → 可能日食）
+     0.25  = 上弦        0.5 = 望（满月，月球在地影里 → 可能月食）
+     0.75  = 下弦
+   倾角 State.moonInclination 与升交点 State.nodeLongitude 同样在这里生效，
+   所以"月亮的路是斜的，大多数时候影子错过"这件事在同一套几何里自然成立，
+   不需要第5章另搞一套。
+   ═══════════════════════════════════════════════════════════════ */
+// 轨道上任意相位的单位方向（物理）。placeMoon 与轨道线共用，保证月亮永远落在自己的线上。
+const _mdA = new THREE.Vector3(), _mdB = new THREE.Vector3();
+function moonDirAtPhase(phase, out){
+  const incl = State.moonInclination * DEG;
+  const node = State.nodeLongitude * DEG;
+  // 交点线：黄道面内，由升交点黄经决定（node=0 → 交点线沿日地连线，朔望皆成食）
+  const nodeDir = _mdA.copy(sunDirW).applyAxisAngle(_YAXIS, node).normalize();
+  // 轨道面内垂直于交点线的方向：黄道面内分量 cos(incl)，法向分量 sin(incl)
+  const orbitPerp = _mdB.copy(_YAXIS).cross(nodeDir).normalize()
+    .multiplyScalar(Math.cos(incl)).addScaledVector(_YAXIS, Math.sin(incl)).normalize();
+  const u = phase - node;                              // 相对升交点的辐角
+  return out.copy(nodeDir).multiplyScalar(Math.cos(u))
+    .addScaledVector(orbitPerp, Math.sin(u)).normalize();
+}
+// 物理方向 → 渲染位置（黄道面内按距离缩放，黄纬按用途拆分，见 placeMoon 的注释）
+function moonRenderPos(dirUnit, out){
+  const dR = moonRenderDist(State.moonDistance);
+  const DS = dR / State.moonDistance, RS = RE_RENDER / R_EARTH;
+  const latOrbit = dirUnit.y * State.moonDistance * DS;
+  const latTune  = MOON_LAT_CAP * Math.tanh(State.ch4Height * RS / MOON_LAT_CAP);
+  return out.set(dirUnit.x*State.moonDistance*DS, latOrbit + latTune, dirUnit.z*State.moonDistance*DS);
+}
+
+function placeMoon(){
+  const phase = State.time * Math.PI * 2;              // 0 = 朔
+  const dir = moonDirAtPhase(phase, _v3);
+
+  if (D.moonDirW) D.moonDirW.copy(dir); else D.moonDirW = dir.clone();
+  D.moonPhase = phase;
+  D.moonUpOff = State.ch4Height;                       // km，第4章"走高一点/低一点"微调
+
+  // —— 物理位置（km，地心系）：这是唯一真相，derive() 也用它 ——
+  const posKm = (D.moonPosKm || (D.moonPosKm = new THREE.Vector3()))
+    .copy(dir).multiplyScalar(State.moonDistance);
+  posKm.y += State.ch4Height;
+
+  /* —— 物理 → 渲染 ——
+     按「黄道面内 / 垂直黄道面」分解，而不是按日地轴分解：
+
+       · 黄道面内(xz) 用距离缩放 —— 轨道因此是正圆，月亮绕一圈就是规规矩矩一圈。
+       · 黄纬(y) 用「半径缩放」—— 决定影子打不打得中的正是它，
+         必须和影锥半径可比；用距离缩放会被压扁 17 倍，于是月月成食。
+
+     早先按日地轴分解是错的：上下弦时"偏离轴的距离"约等于整个月距，
+     那跟成不成食毫无关系，却被一起放大，把圆轨道抻成了方的。
+     tanh 只作用在黄纬上，大倾角时月亮不至于飞出画面。 */
+  const dR = moonRenderDist(State.moonDistance);
+
+  /* 黄道面内 → 距离缩放，轨道是正圆。
+     黄纬拆成两块，各按各的用途缩放：
+
+       · 倾角造成的黄纬 → 距离缩放。它决定的是「轨道长什么样」，
+         必须保持 5.1° 该有的那点倾斜（约轨道半径的 9%）。
+         放大它会把圆轨道拉成竖直椭圆，月亮上蹿下跳。
+
+       · 第4章的高度微调 → 半径缩放。它决定的是「月亮从影子哪儿穿过去」，
+         要和影锥半径比大小才拖得出擦边效果。
+
+     两块都是 y 方向、都单调，叠加后轨迹平滑。
+     倾角非零时渲染上月球会偏乐观地贴近影锥，但成食与否的判定、读数、
+     天空亮度一律走物理量（derive 用的是 D.moonPosKm），不受影响。 */
+  moonRenderPos(dir, _v1);
+  moonMesh.position.copy(earthGroup.position).add(_v1);
+  return dR;
+}
+// 兼容旧调用名：两章原本各有一套摆法，现在统一走 placeMoon()
+const placeMoonForSolar = placeMoon;
+function placeMoonForLunar(){
+  return placeMoon();
+}
+function syncBodyUniforms(){
+  updateSunDir();
+  earthMat.uniforms.uEarthCenter.value.copy(earthGroup.position);
+  earthMat.uniforms.uSunDirW.value.copy(sunDirW);
+  earthMat.uniforms.uSunDistKm.value = State.sunDistance;
+  earthMat.uniforms.uMoonDistKm.value = State.moonDistance;
+  cloudMat.uniforms.uSunDirW.value.copy(sunDirW);
+  atmoMat.uniforms.uSunDirW.value.copy(sunDirW);
+  moonMat.uniforms.uSunDirW.value.copy(sunDirW);
+  moonMat.uniforms.uMoonCenter.value.copy(moonMesh.position);
+  moonMat.uniforms.uSunDistKm.value = State.sunDistance;
+  moonMat.uniforms.uMoonDistKm.value = State.moonDistance;
+  // 月心方向取自渲染位置（含第4章高度偏移）：地表影子与月面着色都跟随画面
+  if (moonMesh.position.lengthSq() > 0.0001){
+    moonMat.uniforms.uMoonDirW.value.copy(moonMesh.position).normalize();
+    earthMat.uniforms.uMoonDirW.value.copy(moonMat.uniforms.uMoonDirW.value);
+  }
+}
+
+// ---- 第3章 · 日食三兄弟 ★核心 ----
+const Ch3 = {
+  title:'日食三兄弟', num:'第三章', goal:'日全食 · 日偏食 · 日环食',
+  _won:false, _prevObsc:0, _pauseT:0, _wasPlaying:false, _zoneSaid:{}, _critSaid:false, _grace:0,
+  setup(){
+    resetStage();
+    this._won=false; this._prevObsc=0; this._pauseT=0; this._zoneSaid={}; this._critSaid=false;
+    this._grace = 16;      // 开场白期间的宽限期：不插播区域旁白
+    State.moonDistance = D_MOON_MEAN; State.time = 0.0;    // 开场即朔（新月）——日食就发生在这一刻
+    State.nodeLongitude = 0;                               // 交点对着日地连线，本章保证成食
+    earthMat.uniforms.uEclipseOn.value = 1;
+    moonOrbitLine.visible = true;
+    observerMark.visible = true;
+    MiniGlobe.show();
+    $('eyepip').classList.remove('panel-hidden');
+    buildReadouts([
+      { k:'你这里看到的', f:() => ({none:'太阳好好的',partial:'日偏食',total:'日全食！',annular:'日环食！'}[D.obsType]) },
+      { k:'太阳被挡住', f:() => (D.obsObsc*100).toFixed(1)+'%' },
+      { k:'天空亮度', f:() => D.skyB.toFixed(2) },
+      { k:'影子够到地球吗', f:() => !D.shadowAimsAtEarth ? '影子甩到一边去了' : (D.umbraReachesSurface ? '够到了！' : `差 ${fmt(D.umbraTipGap)} km`) },
+      { k:'月亮距离', f:() => fmt(State.moonDistance)+' km' },
+    ]);
+    Timeline.show(phaseLabel);   // 整条时间轴 = 一个完整朔望月
+    tweenCamera(new THREE.Vector3(3, 9, 30), new THREE.Vector3(-2,0,0), 1.4);
+    setCamPresets([
+      { label:'🌍 看地球', pos:new THREE.Vector3(3, 9, 30), target:new THREE.Vector3(-2,0,0) },
+      { label:'📏 侧面看影锥', pos:new THREE.Vector3(0, 0.6, 44), target:new THREE.Vector3(-8,0,0) },
+      { label:'🌑 跟着月亮', pos:new THREE.Vector3(-24, 3, 14), target:new THREE.Vector3(-14,0,0) },
+    ]);
+    showControls('日食控制台');
+    makeSlider(controlsBox, {
+      label:'月亮有多远（本章灵魂滑杆）', min:D_MOON_PERI, max:D_MOON_APO, step:100,
+      value:State.moonDistance,
+      format:v => fmt(v)+' km',
+      sub:'近地点 356,500 ←→ 远地点 406,700',
+      thresholds:[{ at:totalEclipseCriticalDistance(), onCross:side => {
+        AudioKit.threshold();
+        if (!this._critSaid){
+          this._critSaid = true;
+          Narrator.say([
+            '就是这里！月亮离地球 37 万 9 千公里，就是全食和环食的分界线。',
+            '比这个近一点 → 日全食。远一点 → 日环食。',
+            '有意思的是——月亮平均离我们 38 万 4 千公里，比这条线还要远一点点。所以其实，日环食比日全食还要多见一些。',
+          ]);
+        }
+      }}],
+      onChange:v => { State.moonDistance = v; },
+    });
+    const presets = document.createElement('div');
+    presets.className = 'ctl-btns';
+    controlsBox.appendChild(presets);
+    makeButton(presets, { text:'🌑 全食', onClick:() => this.preset(362000, 0, 0) });
+    makeButton(presets, { text:'🌒 偏食', onClick:() => this.preset(370000, 22, -8) });
+    makeButton(presets, { text:'💍 环食', onClick:() => this.preset(400000, 0, 0) });
+    addConeToggles(controlsBox);
+    Narrator.say([
+      '现在回到天上。月亮绕着地球转，有时候会刚好跑到地球和太阳中间。',
+      '这时候，月亮就挡住了太阳的光。月亮的影子，落到了地球上。',
+      '看那个深紫色的小锥子——那就是月亮的**本影**。它扫过地球的表面，像一支黑色的笔，画出一条线。',
+      '只有被这条线扫到的人，才能看到**日全食**。这条线很窄很窄——大概只有一百多公里宽。',
+      '【点一下左下角的地球，选一个地方站】抬头看看右下角，那是你看到的天空。',
+    ]);
+  },
+  preset(dist, lat, lon){
+    State.moonDistance = dist;
+    State.observer = { lat, lon };
+    State.time = 0.0; State.playing = true;
+    Timeline.refresh();
+    controlsBox.querySelector('input').value = dist;   // 同步滑杆
+    controlsBox.querySelector('input').dispatchEvent(new Event('input'));
+  },
+  preUpdate(){ placeMoon(); },       // 摆位必须在 derive() 之前
+  update(dt){
+    this._grace -= dt;
+    const dR = moonRenderDist(State.moonDistance);
+    syncBodyUniforms();
+    updateMoonOrbitLine();
+    updateAllShadowCones();
+    // 观察者图钉
+    observerMark.position.copy(earthGroup.position).addScaledVector(D.obsDir, RE_RENDER*1.02);
+    observerMark.lookAt(observerMark.position.clone().multiplyScalar(2).sub(earthGroup.position));
+    // 云层的压暗已改为逐片元跟随影锥（见 CLOUD_FRAG），这里不再做全局调制
+    // PIP
+    D.eyeMode = 0;
+    eyeZoneEl.textContent = { none:'☀️ 影子没扫到你这里', partial:'🌒 太阳被咬掉一口 —— 日偏食',
+      total:'🌑 你在本影里 —— 日全食！', annular:'💍 金戒指！—— 日环食' }[D.obsType];
+    // 全食的戏剧性停顿（≥2 秒）
+    if (D.obsObsc >= 0.9998 && this._prevObsc < 0.9998){
+      AudioKit.totality();
+      this._wasPlaying = State.playing;
+      State.playing = false;
+      this._pauseT = 2.6;
+      Narrator.say([
+        '天黑了！',
+        '太阳完全不见了，只剩下周围一圈白白的光——那叫**日冕**，是太阳的"头发"，平时被太阳自己的光盖住，只有这时候才看得见。',
+        '星星出来了。远处的天边还是亮的，像一圈日落。这就是**日全食**。一辈子能看到一次，都算幸运。',
+      ]);
+    }
+    if (this._pauseT > 0){
+      this._pauseT -= dt;
+      if (this._pauseT <= 0 && this._wasPlaying) State.playing = true;
+    }
+    this._prevObsc = D.obsObsc;
+    // 区域切换旁白（各说一次，开场白期间不插播）
+    if (this._grace <= 0 && D.obsType === 'partial' && !this._zoneSaid.pen){
+      this._zoneSaid.pen = true;
+      Narrator.say(['太阳被咬掉了一口。天还是亮的——你甚至可能不会注意到有什么不对。这就是**日偏食**。']);
+    }
+    if (this._grace <= 0 && D.obsType === 'none' && !this._zoneSaid.none && State.time > 0.2){
+      this._zoneSaid.none = true;
+      Narrator.say(['这里什么都没发生。太阳好好的。同一个时刻，几百公里外的人正在看日全食，你却完全不知道。']);
+    }
+    // 环食天空几乎不暗（重要教学点）
+    if (this._grace <= 0 && D.obsType === 'annular' && D.obsObsc > 0.9 && !this._zoneSaid.ann){
+      this._zoneSaid.ann = true;
+      Narrator.say([
+        '咦，明明太阳被盖住了这么多，天怎么还是亮的？',
+        '因为剩下的那一圈金光，还是很刺眼很刺眼。日环食的时候，天不会黑，星星也不会出来。',
+        '只有日全食，才会让白天突然变成黑夜。',
+      ]);
+    }
+    // 挑战：站的地方看到日全食
+    if (!this._won && D.obsType === 'total'){
+      this._won = true; AudioKit.success(); awardBadge(2);
+    }
+    MiniGlobe.draw();
+    updateScaleNote();
+  },
+  teardown(){ this._zoneSaid = {}; },
+};
+
+// ---- 第4章 · 月食与血月 ----
+const Ch4 = {
+  title:'月食与血月', num:'第四章', goal:'月全食 · 月偏食 · 半影月食',
+  _won:false, _saidCompare:false, onMoon:false,
+  setup(){
+    resetStage();
+    this._won=false; this._saidCompare=false; this.onMoon=false;
+    State.moonDistance = D_MOON_MEAN; State.ch4Height = 0; State.time = 0.5;   // 望（满月）——月食时刻
+    State.nodeLongitude = 0;                                                   // 交点对齐，本章保证成食
+    // 本章戏剧性全在月面颜色上，4° 视场里 0.52° 的月亮太小看不清血月，
+    // 收到 1.6° 让月亮占到画面 1/3。（resetStage 会在离开本章时恢复 4°）
+    State.eyeFov = 1.6;
+    moonMat.uniforms.uEclipseOn.value = 1;
+    $('eyepip').classList.remove('panel-hidden');
+    $('eye-title').textContent = '👁 小朋友的眼睛（看向月亮）';
+    buildReadouts([
+      { k:'月食类型', f:() => ({none:'现在没有月食',penumbral:'半影月食',partial:'月偏食',total:'月全食！'}[D.lunType]) },
+      { k:'月亮高度', f:() => fmt(State.ch4Height)+' km' },
+      { k:'地影有多宽', f:() => (2*D.rUmbraAtMoonKm/(2*R_MOON)).toFixed(2)+' 个月亮' },
+      { k:'月食食分', f:() => Math.max(0, D.lunMag).toFixed(2) },
+    ]);
+    Timeline.show(phaseLabel);   // 整条时间轴 = 一个完整朔望月
+    tweenCamera(new THREE.Vector3(15, 8, 34), new THREE.Vector3(13,0,0), 1.4);
+    // 画面中心右移到 13：月亮在距地心 ~17 处，target 取 8 会把它推到右侧读数面板底下。
+    setCamPresets([
+      { label:'🌍 地球背后', pos:new THREE.Vector3(15, 8, 34), target:new THREE.Vector3(13,0,0) },
+      { label:'📏 侧面看', pos:new THREE.Vector3(19, 0.8, 40), target:new THREE.Vector3(15,0,0) },
+    ]);
+    showControls('月食控制台');
+    makeSlider(controlsBox, {
+      label:'月亮走高一点 / 低一点', min:-12000, max:12000, step:100,
+      value:State.ch4Height,
+      format:v => (v>0?'+':'')+fmt(v)+' km',
+      sub:'决定月亮从影子的哪里穿过去',
+      onChange:v => { State.ch4Height = v; },
+    });
+    const presets = document.createElement('div');
+    presets.className = 'ctl-btns';
+    controlsBox.appendChild(presets);
+    makeButton(presets, { text:'🔴 月全食', onClick:() => this.preset(0) });
+    makeButton(presets, { text:'🌗 月偏食', onClick:() => this.preset(5600) });
+    makeButton(presets, { text:'👻 半影月食', onClick:() => this.preset(9000) });
+    this.moonBtn = makeButton(controlsBox, { text:'🚀 站到月亮上去', onClick:() => this.toggleMoonView() });
+    addConeToggles(controlsBox);
+    Narrator.say([
+      '刚才是月亮挡住了太阳。现在，换地球来挡路。',
+      '地球也有影子，而且比月亮的影子大得多。看那个巨大的锥子。',
+      '在月亮那么远的地方，地球的影子还有 **2.6 个月亮**那么宽。所以月亮可以整个钻进去。',
+      '【拖动时间轴，让月亮走进影子】',
+    ]);
+  },
+  preset(h){
+    State.ch4Height = h; State.time = 0.5; State.playing = true;
+    Timeline.refresh();
+    const inp = controlsBox.querySelector('input');
+    inp.value = h; inp.dispatchEvent(new Event('input'));
+  },
+  toggleMoonView(){
+    this.onMoon = !this.onMoon;
+    atmoMat.uniforms.uBlood.value = this.onMoon ? 1 : 0;
+    controls.enabled = !this.onMoon;
+    this.moonBtn.textContent = this.onMoon ? '🔙 飞回地球这边' : '🚀 站到月亮上去';
+    this.moonBtn.classList.toggle('on', this.onMoon);
+    $('eye-title').textContent = this.onMoon ? '👁 站在月亮上，回头看' : '👁 小朋友的眼睛（看向月亮）';
+    // 从月球看，地球角直径 ~1.9°，1.6° 的视场装不下 → 站上去时放宽，回来再收窄
+    State.eyeFov = this.onMoon ? 4.5 : 1.6;
+    if (this.onMoon){
+      Narrator.say([
+        '你现在站在月亮上，抬头看地球。',
+        '地球是黑的，它把太阳完全挡住了。可是地球的边上，围着一圈红红的光环。',
+        '你知道那是什么吗？那是地球上**所有地方的日出和日落，同时发生**。',
+        '就是这一圈光，染红了你脚下的月亮。',
+      ]);
+    }
+  },
+  preUpdate(){ placeMoon(); },       // 摆位必须在 derive() 之前
+  update(dt){
+    syncBodyUniforms();
+    updateAllShadowCones();
+    D.eyeMode = this.onMoon ? 2 : 1;
+    eyeZoneEl.textContent = {none:'月亮好好的',penumbral:'👻 半影月食（看得出来吗？）',partial:'🌗 月偏食',total:'🔴 月全食 · 血月！'}[D.lunType];
+    // 站到月亮上：相机贴在月表回看地球
+    if (this.onMoon){
+      const toEarth = earthGroup.position.clone().sub(moonMesh.position);
+      const d = toEarth.length();
+      camera.position.copy(moonMesh.position).addScaledVector(toEarth.normalize(), RM_RENDER*2.6);
+      camera.position.y += RM_RENDER*0.5;
+      controls.target.copy(earthGroup.position);
+      camera.lookAt(earthGroup.position);
+    }
+    // 挑战：造出半影月食
+    if (!this._won && D.lunType === 'penumbral'){
+      this._won = true; AudioKit.success(); awardBadge(3);
+      Narrator.say(['看出来了吗？几乎看不出来吧——半影月食就是这么不起眼，很多人根本注意不到。']);
+    }
+    // 月全食 → 对比提示
+    if (D.lunType === 'total' && !this._saidCompare){
+      this._saidCompare = true;
+      Narrator.say([
+        '它没有变黑，它变**红**了！人们叫它——**血月**。',
+        '你发现了吗？日全食只有几分钟，而且只有一条很窄的线上能看到。',
+        '月全食能看一个多小时，而且地球上晚上那一整面的人，都能看到。因为地球的影子，比月亮的影子大太多了。',
+      ]);
+    }
+    updateScaleNote();
+  },
+  teardown(){
+    if (this.onMoon) this.toggleMoonView();
+    $('eye-title').textContent = '👁 小朋友的眼睛';
+    controls.enabled = true;
+  },
+};
+
+// ---- 第5章 · 为什么不是每个月？ ★难点 ----
+const Ch5 = {
+  title:'为什么不是每个月？', num:'第五章', goal:'月亮的路斜了 5 度',
+  hits:0, _prevFrac:0, _inclCur:MOON_INCL, _quizDone:false, _won:false, _status:'',
+  setup(){
+    resetStage();
+    spaceGroup.visible = false;
+    ch5Group.visible = true;
+    this.hits = 0; this._prevFrac = 0; this._quizDone = false; this._won = false;
+    this._inclCur = State.moonInclination = MOON_INCL;
+    State.ch5Flatten = false;
+    State.time = 0; State.speed = 1;
+    $('ch5-counter').classList.remove('panel-hidden');
+    $('ch5-n').textContent = '0';
+    $('tl-speed').textContent = '1×';
+    Timeline.show(t => {
+      const m = Math.floor(t*12)+1;
+      return `${m} 月`;
+    });
+    // 相机必须瞄准「地球」而不是原点（原点是太阳，正对它会被光晕糊满屏）。
+    // ⚠️ update() 此刻还没跑过，ch5EarthGroup.position 仍是初始值，
+    //    所以先按 State.time 手动把地球放到位，否则 target 会锁死在 (0,0,0)。
+    const phi0 = State.time*Math.PI*2;
+    ch5EarthGroup.position.set(Math.cos(phi0)*EARTH_ORBIT_R5, 0, Math.sin(phi0)*EARTH_ORBIT_R5);
+    this._camAnchor = ch5EarthGroup.position.clone();   // update() 里靠它做相机跟随
+    // 机位一律相对地球给偏移；距离 ~30 时月球轨道(半径 8.5)占满画面，
+    // 且太阳偏离视线 >50° 落在视场外，不会晃眼。
+    const E    = () => ch5EarthGroup.position.clone();
+    const camAt = (dx,dy,dz) => () => E().add(new THREE.Vector3(dx,dy,dz));
+    const O    = () => new THREE.Vector3(0,0,0);        // 太阳（黄道盘中心）
+    this._followEarth = true;
+    tweenCamera(camAt(0, 7, 29)(), E(), 1.4);
+    setCamPresets([
+      // 近景跟着地球：看清白道相对黄道的 5° 倾斜与影子射线
+      { label:'📏 侧视斜面', pos:camAt(0, 7, 29),    target:E, after:()=>{ this._followEarth = true; } },
+      { label:'🔄 换个方向', pos:camAt(-26, 9, -14), target:E, after:()=>{ this._followEarth = true; } },
+      // 远景对准太阳：退到黄道盘外，才看得到"地球绕太阳的路是个平盘"的整体
+      { label:'⬆️ 俯视全局', pos:()=>new THREE.Vector3(0, 120, 0.1), target:O,
+        after:()=>{ this._followEarth = false; } },
+    ]);
+    showControls('试一试');
+    makeSlider(controlsBox, {
+      label:'月亮的路有多斜', min:0, max:10, step:0.1,
+      value:State.moonInclination,
+      format:v => v < 0.05 ? '完全平的！' : v.toFixed(1)+'°',
+      sub:'真实值：5.1°',
+      onChange:v => { State.moonInclination = v; State.ch5Flatten = false; this.flatToggle && this.flatToggle.set(false); },
+    });
+    this.flatToggle = makeToggle(controlsBox, {
+      label:'🪄 把路拉平（0°）', value:false,
+      onChange:v => { State.ch5Flatten = v;
+        if (v) Narrator.say(['变成 0 度了……哇，每个月的影子都打中地球了！','现在明白为什么了吗？正因为月亮的路斜了那么一点点，影子大多数时候都扔到太空里去了。']);
+      },
+    });
+    makeButton(controlsBox, { text:'🤔 猜猜一年能打中几次？', onClick:() => this.quiz() });
+    Narrator.say([
+      '现在有一个问题。月亮每个月都会转到地球和太阳中间一次。',
+      '那……为什么不是每个月都有日食呢？',
+      '【换个角度看】你看：地球绕太阳走的路，是这个平平的圆盘。月亮绕地球走的路，是这个**斜斜的**圆盘。',
+      '它们差了大概 5 度。5 度听起来很小，可是在天上，这就够了。',
+      '【按播放，看一整年】',
+    ], { perLine:(i, line) => {
+      if (line.includes('按播放')){ State.playing = true; Timeline.refresh(); }
+    }});
+  },
+  quiz(){
+    showModal({
+      emoji:'🤔', title:'猜猜看',
+      html:'<p>一年里，月亮的影子能打中地球几次？</p>',
+      buttons:[
+        { text:'2 次', close:false, onClick:() => this.answer() },
+        { text:'4 次左右', primary:true, close:false, onClick:() => this.answer() },
+        { text:'12 次', close:false, onClick:() => this.answer() },
+      ],
+    });
+  },
+  answer(){
+    this._quizDone = true;
+    showModal({
+      emoji:'🎁', title:'答案是：一年通常 4 次左右',
+      html:`<p>最少 2 次，最多 5 次（你这一年看到了 <b style="color:var(--accent)">${this.hits}</b> 次）。</p>
+            <p>但是别忘了——打中地球，不代表你能看到。你还得刚好站在那条很窄的线上才行。</p>`,
+      buttons:[{ text:'我懂了', primary:true }],
+    });
+  },
+  update(dt){
+    // 倾角平滑动画（"把路拉平"瞬间对比）
+    const target = State.ch5Flatten ? 0 : State.moonInclination;
+    this._inclCur += (target - this._inclCur)*Math.min(1, dt*4);
+    const incl = this._inclCur*DEG;
+    const days = State.time*DAYS_PER_YEAR;
+    const phiE = days/DAYS_PER_YEAR*Math.PI*2;
+    // 地球在公转轨道上
+    ch5EarthGroup.position.set(Math.cos(phiE)*EARTH_ORBIT_R5, 0, Math.sin(phiE)*EARTH_ORBIT_R5);
+    // 相机跟着地球平移（否则地球绕太阳走一圈就飘出视野，只剩星空）。
+    // 位置加增量以保留用户自己转过的视角，target 直接对准地球保证始终居中。
+    if (this._camAnchor){
+      if (!camTween.active && this._followEarth){
+        const ep = ch5EarthGroup.position, a = this._camAnchor;
+        camera.position.x += ep.x - a.x;
+        camera.position.y += ep.y - a.y;
+        camera.position.z += ep.z - a.z;
+        controls.target.copy(ep);
+      }
+      this._camAnchor.copy(ch5EarthGroup.position);
+    }
+    // 交点退行（18.6 年一周）
+    const node = State.nodeLongitude*DEG - days/(NODE_REGRESSION_YEARS*DAYS_PER_YEAR)*Math.PI*2;
+    lunarPlanePivot.rotation.y = node;
+    lunarPlane.rotation.x = -Math.PI/2 + incl;
+    const nvec = new THREE.Vector3(Math.cos(node), 0, -Math.sin(node));
+    const na = nodeLine.geometry.attributes.position.array;
+    na[0]=-nvec.x*(MOON_ORBIT_R5+3.5); na[1]=0; na[2]=-nvec.z*(MOON_ORBIT_R5+3.5);
+    na[3]= nvec.x*(MOON_ORBIT_R5+3.5); na[4]=0; na[5]= nvec.z*(MOON_ORBIT_R5+3.5);
+    nodeLine.geometry.attributes.position.needsUpdate = true;
+    // 月球位置：相位 β（相对日地线）+ 交点纬度 u
+    const beta = days/SYNODIC_MONTH*Math.PI*2;
+    const lambda = phiE + Math.PI + beta;               // 月球绝对黄经
+    const u = lambda - node;
+    const y = MOON_ORBIT_R5*Math.sin(u)*Math.sin(incl);
+    ch5Moon.position.set(
+      ch5EarthGroup.position.x + Math.cos(lambda)*MOON_ORBIT_R5,
+      y,
+      ch5EarthGroup.position.z + Math.sin(lambda)*MOON_ORBIT_R5);
+    // 月球轨道线
+    const oa = ch5MoonOrbit.geometry.attributes.position.array;
+    for (let i=0;i<=128;i++){
+      const ui = i/128*Math.PI*2, li = ui + node;
+      oa[i*3]   = Math.cos(li)*MOON_ORBIT_R5;
+      oa[i*3+1] = MOON_ORBIT_R5*Math.sin(ui)*Math.sin(incl);
+      oa[i*3+2] = Math.sin(li)*MOON_ORBIT_R5;
+    }
+    ch5MoonOrbit.geometry.attributes.position.needsUpdate = true;
+    // 月影射线（背向太阳）：太阳在 SUN_RENDER_POS，方向 = 月→日，射线指向背日侧
+    const SUN5 = ch5Sun.position;
+    const dirS = SUN5.clone().sub(ch5Moon.position).normalize();
+    const ra = shadowRay.geometry.attributes.position.array;
+    ra[0]=ch5Moon.position.x - dirS.x*0.8; ra[1]=ch5Moon.position.y - dirS.y*0.8; ra[2]=ch5Moon.position.z - dirS.z*0.8;
+    ra[3]=ch5Moon.position.x - dirS.x*16;  ra[4]=ch5Moon.position.y - dirS.y*16;  ra[5]=ch5Moon.position.z - dirS.z*16;
+    shadowRay.geometry.attributes.position.needsUpdate = true;
+    // 新月/满月穿越检测 → 命中计数
+    const frac = (days/SYNODIC_MONTH) % 1;
+    if (frac < this._prevFrac - 0.5){                    // 新月（_frac 从 ~1 跳回 ~0）
+      const yKm = D_MOON_MEAN*Math.sin((phiE+Math.PI)-node)*Math.sin(incl);
+      if (Math.abs(yKm) < R_EARTH + 200){
+        this.hits++;
+        $('ch5-n').textContent = this.hits;
+        hitFlash(); AudioKit.ding();
+        if (!this._won && this._inclCur > 4){ this._won = true; awardBadge(4); }
+      }
+    }
+    if (this._prevFrac < 0.5 && frac >= 0.5){             // 满月穿越
+      const yKm = D_MOON_MEAN*Math.sin((phiE+Math.PI+Math.PI)-node)*Math.sin(incl);
+      if (Math.abs(yKm) < D.rUmbraAtMoonKm + R_MOON){
+        hitFlash();
+      }
+    }
+    this._prevFrac = frac;
+    updateScaleNote();
+  },
+  teardown(){ Timeline.hide(); },
+};
+
+// ---- 沙盒 · 自由观测台 ----
+const ChSandbox = {
+  title:'自由观测台', num:'沙盒', goal:'全部参数随便玩',
+  setup(){
+    resetStage();
+    earthMat.uniforms.uEclipseOn.value = 1;
+    moonOrbitLine.visible = true;
+    observerMark.visible = true;
+    MiniGlobe.show();
+    $('eyepip').classList.remove('panel-hidden');
+    buildReadouts([
+      { k:'你这里看到的', f:() => ({none:'没有日食',partial:'日偏食',total:'日全食！',annular:'日环食！'}[D.obsType]) },
+      { k:'太阳被挡住', f:() => (D.obsObsc*100).toFixed(1)+'%' },
+      { k:'天空亮度', f:() => D.skyB.toFixed(2) },
+      { k:'影子够到地球吗', f:() => !D.shadowAimsAtEarth ? '影子甩到一边去了' : (D.umbraReachesSurface ? '够到了！' : `差 ${fmt(D.umbraTipGap)} km`) },
+    ]);
+    Timeline.show(phaseLabel);
+    State.time = 0.5;
+    State.nodeLongitude = 0;   // 交点对齐，沙盒里拖时间轴才看得到食
+    tweenCamera(new THREE.Vector3(3, 9, 30), new THREE.Vector3(-2,0,0), 1.4);
+    setCamPresets([
+      { label:'🌍 看地球', pos:new THREE.Vector3(3, 9, 30), target:new THREE.Vector3(-2,0,0) },
+      { label:'📏 侧面', pos:new THREE.Vector3(0, 0.6, 44), target:new THREE.Vector3(-8,0,0) },
+    ]);
+    showControls('全参数面板');
+    makeSlider(controlsBox, {
+      label:'月球距离', min:D_MOON_PERI, max:D_MOON_APO, step:100, value:State.moonDistance,
+      format:v => fmt(v)+' km', onChange:v => State.moonDistance = v,
+    });
+    makeSlider(controlsBox, {
+      label:'太阳距离', min:D_SUN_PERI, max:D_SUN_APO, step:100000, value:State.sunDistance,
+      format:v => (v/1e6).toFixed(2)+' 百万 km', onChange:v => State.sunDistance = v,
+    });
+    makeSlider(controlsBox, {
+      label:'你的纬度', min:-60, max:60, step:1, value:State.observer.lat,
+      format:v => v.toFixed(0)+'°', onChange:v => State.observer.lat = v,
+    });
+    makeSlider(controlsBox, {
+      label:'你的经度（相对影子）', min:-80, max:80, step:1, value:State.observer.lon,
+      format:v => v.toFixed(0)+'°', onChange:v => State.observer.lon = v,
+    });
+    makeSlider(controlsBox, {
+      label:'天体放大倍数', min:0, max:0.88, step:0.01, value:State.scaleKnob,
+      format:v => `×${fmt(Math.pow(EXAG_MAX, v))}`, onChange:v => State.scaleKnob = v,
+    });
+    addConeToggles(controlsBox);
+    makeToggle(controlsBox, { label:'显示轨道线', value:State.showOrbits, onChange:v => { State.showOrbits = v; moonOrbitLine.visible = v; } });
+    makeToggle(controlsBox, { label:'显示星空', value:true, onChange:v => stars.visible = v });
+    makeButton(controlsBox, { text:'🎲 随机来一次！', className:'btn primary', onClick:() => this.random() });
+    Narrator.say(['这是你的观测台。所有的旋钮都解锁了，随便玩，玩不坏的。','要不先来一下"随机来一次"？']);
+  },
+  random(){
+    State.moonDistance = lerp(D_MOON_PERI, D_MOON_APO, Math.random());
+    State.sunDistance = lerp(D_SUN_PERI, D_SUN_APO, Math.random());
+    State.observer = { lat:(Math.random()*80-40), lon:(Math.random()*70-35) };
+    State.time = 0.42 + Math.random()*0.16;
+    // 同步所有滑杆
+    controlsBox.querySelectorAll('input').forEach((inp, i) => {
+      const vals = [State.moonDistance, State.sunDistance, State.observer.lat, State.observer.lon, State.scaleKnob];
+      inp.value = vals[i];
+      inp.dispatchEvent(new Event('input'));
+    });
+    setTimeout(() => {
+      const names = { none:'这次什么都没有发生', partial:'这次是日偏食', total:'这次是日全食！！', annular:'这次是日环食' };
+      Narrator.say([
+        `${names[D.obsType]}！你这里太阳被挡住了 ${(D.obsObsc*100).toFixed(1)}%。`,
+        D.obsType === 'annular' ? '看，锥尖差一点点够不到地球——金戒指出现了。'
+        : D.obsType === 'total' ? '锥尖正好插进了地球，你站的地方天黑了！'
+        : '换个地方站，或者调一下月亮的距离，再试试。',
+      ]);
+    }, 120);
+  },
+  preUpdate(){ placeMoon(); },       // 摆位必须在 derive() 之前
+  update(dt){
+    const dR = moonRenderDist(State.moonDistance);
+    // 先应用尺度旋钮，再更新影锥 —— 反过来的话影锥会拿上一帧的缩放，
+    // 旋钮一动锥体就和天体脱节。
+    const f = Math.pow(EXAG_MAX, State.scaleKnob - 0.62);
+    earthGroup.scale.setScalar(f);
+    moonMesh.scale.setScalar(f);
+    syncBodyUniforms();
+    updateMoonOrbitLine();
+    updateAllShadowCones();
+    observerMark.position.copy(earthGroup.position).addScaledVector(D.obsDir, RE_RENDER*f*1.02);
+    observerMark.lookAt(observerMark.position.clone().multiplyScalar(2).sub(earthGroup.position));
+    D.eyeMode = 0;
+    eyeZoneEl.textContent = { none:'☀️ 影外', partial:'🌒 日偏食', total:'🌑 日全食', annular:'💍 日环食' }[D.obsType];
+    MiniGlobe.draw();
+    updateScaleNote();
+  },
+  teardown(){ earthGroup.scale.setScalar(1); moonMesh.scale.setScalar(1); stars.visible = true; },
+};
+
+const CHAPTERS = [ChPrologue, Ch1, Ch2, Ch3, Ch4, Ch5, ChSandbox];
+// 各章时间轴长度（秒，1× 速度）
+const TL_DUR = { 0:12, 3:26, 4:26, 5:16, 6:26 };   // 3/4/6 章一整圈 = 一个朔望月
+const TL_LOOP = { 3:true, 4:true, 6:true };        // 月球公转：循环播放
+
+// 时间轴上的月相标签（t ∈ [0,1] = 一个朔望月）
+function phaseLabel(t){
+  const d = t*SYNODIC_MONTH;
+  const name = (t < 0.03 || t > 0.97) ? '新月（朔）' : t < 0.22 ? '娥眉月' : t < 0.28 ? '上弦月'
+             : t < 0.47 ? '盈凸月' : t < 0.53 ? '满月（望）' : t < 0.72 ? '亏凸月'
+             : t < 0.78 ? '下弦月' : '残月';
+  return `第 ${d.toFixed(1)} 天 · ${name}`;
+}
+
+function goChapter(i){
+  if (i === 6 && !State.badges[5]){
+    showModal({ emoji:'🔒', title:'还没解锁哦',
+      html:'<p>先把前面的六关都玩一遍，集齐五枚徽章，自由观测台就开门啦。</p>',
+      buttons:[{ text:'好，继续闯关', primary:true }] });
+    return;
+  }
+  const cur = CHAPTERS[State.chapter];
+  if (cur && cur.teardown) cur.teardown();
+  State.chapter = i;
+  State.time = 0;
+  State.playing = false;
+  Timeline.refresh();
+  refreshNav();
+  const ch = CHAPTERS[i];
+  chapterSplash(ch.num, ch.title, ch.goal);
+  ch.setup();
+}
+
+// ---- 结业 · 小朋友的观测日志 ----
+function showGraduation(){
+  showModal({
+    emoji:'🎓', title:'小朋友的观测日志',
+    html:`<p style="text-align:left">小朋友，你现在知道了六件事：</p>
+      <p style="text-align:left;line-height:2.2">
+      ☀️ 太阳比月亮大 400 倍，也远 400 倍——所以看起来一样大<br>
+      🌓 影子有两层：中间的本影，和外面的半影<br>
+      🌑 月亮的影子扫过地球，扫到的地方是日全食，旁边是日偏食<br>
+      💍 月亮跑远了，影子够不着地球，就变成日环食<br>
+      🔴 月亮走进地球的影子会变红，因为地球的空气把红光弯了进来<br>
+      📐 月亮的路斜了 5 度，所以日食月食才这么少见</p>
+      <p>下一次真的有日食的时候，你就知道天上正在发生什么了。</p>`,
+    buttons:[{ text:'去自由观测台 →', primary:true, onClick:() => goChapter(6) }],
+  });
+}
+
+// ---- 顶栏按钮 ----
+$('mute-btn').addEventListener('click', () => {
+  State.muted = !State.muted;
+  $('mute-btn').textContent = State.muted ? '🔇' : '🔊';
+  saveProgress();
+  if (!State.muted) AudioKit.pop();
+});
+$('mute-btn').textContent = State.muted ? '🔇' : '🔊';
+$('perf-btn').addEventListener('click', () => {
+  perfMode = !perfMode;
+  bloomPass.enabled = !perfMode;
+  renderer.setPixelRatio(perfMode ? 1 : Math.min(window.devicePixelRatio, 2));
+  composer.setPixelRatio(perfMode ? 1 : Math.min(window.devicePixelRatio, 2));
+  onResize();
+  $('perf-btn').textContent = perfMode ? '🐢' : '✨';
+  $('perf-btn').classList.toggle('on', perfMode);
+});
+// 眼睛 PIP 放大/缩回
+$('eyepip').addEventListener('click', () => {
+  State.eyeViewExpanded = !State.eyeViewExpanded;
+  document.body.classList.toggle('eye-full', State.eyeViewExpanded);
+  $('eye-expand').textContent = State.eyeViewExpanded ? '⤡ 缩回' : '⤢ 放大';
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   ═══ 10. 主循环与启动 ═══
+   每帧：时间轴推进 → 相机缓动 → 物理派生 → 章节更新 →
+        主渲染（Bloom+暗角）→ 眼睛视图（最后画，盖在对应视口上）
+   ═══════════════════════════════════════════════════════════════ */
+
+const clock = new THREE.Clock();
+let booted = false;
+
+function renderEyeFull(){
+  // 第1章：眼睛视图铺满全屏
+  eyeMat.uniforms.uAspect.value = window.innerWidth / window.innerHeight;   // 全屏按窗口宽高比校正
+  eyeMat.uniforms.uPxPerRad.value = window.innerHeight / (2*eyeMat.uniforms.uFovHalf.value);
+  renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+  renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+  renderer.setScissorTest(true);
+  renderer.clearDepth();
+  renderer.render(eyeScene, eyeCam);
+  renderer.setScissorTest(false);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  // 时间轴推进
+  const dur = TL_DUR[State.chapter];
+  if (State.playing && dur){
+    State.time += dt*State.speed/dur;
+    // 第3/4章与沙盒的时间轴是月球公转，应当一圈接一圈地转；
+    // 第5章的"一年"到头就停（否则跨年会把命中计数重复累加）。
+    if (State.time >= 1){
+      if (TL_LOOP[State.chapter]) State.time -= 1;
+      else { State.time = 1; State.playing = false; }
+    }
+    Timeline.refresh();
+  }
+
+  updateCamTween(dt);
+  controls.update();
+  updateSunDir();
+  // 先让章节把天体摆到位，再算物理量 —— 否则 derive() 用的是上一帧的月球位置，
+  // 拖滑杆时读数会比画面慢一帧。
+  const chPre = CHAPTERS[State.chapter];
+  if (chPre.preUpdate) chPre.preUpdate(dt);
+  derive();
+
+  // 共用 uniform
+  sunMat.uniforms.uTime.value += dt;
+  earthMat.uniforms.uTime.value += dt;
+  cloudMat.uniforms.uTime.value += dt;
+
+  // 章节逻辑（不直接渲染眼睛视图，只声明 D.eyeMode）
+  const ch = CHAPTERS[State.chapter];
+  if (ch.update) ch.update(dt);
+
+  if (readoutUpdaters.length && !$('readouts').classList.contains('panel-hidden')) updateReadouts();
+
+  // 主渲染
+  composer.render();
+
+  // 眼睛视图：永远与主视图同一物理状态，最后覆盖绘制
+  if (D.eyeMode === 'full'){
+    renderEyeFull();
+  } else if (D.eyeMode >= 0){
+    renderEyeView(D.eyeMode, dt);
+  }
+}
+
+function onResize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+}
+window.addEventListener('resize', onResize);
+
+// ---- 启动 ----
+function boot(){
+  try {
+    buildNav();
+    onResize();
+    // 自动跑一次科学自检（结果在控制台；也可随时 window.runSelfTest()）
+    const st = runSelfTest();
+    console.log('%c🌒 影子剧场已启动。科学自检：' + (st.all ? '全部通过 ✅' : st.pass + '/' + st.total + '（有未通过项，请检查）'),
+      'color:#ffd166;font-weight:bold');
+    window.SHADOW_STATE = State;   // 调试用
+    window.SHADOW_D = D;
+    window.SHADOW_SCENE = { scene, camera, controls, ch5Group, ch5EarthGroup, ch5Moon, ch5Sun, eclipticDisc, camTween, tweenCamera, eyeMat };
+    // 支持 ?ch=3 直达某一章（家长直达 / 调试用）
+    const qch = parseInt(new URLSearchParams(location.search).get('ch') ?? '', 10);
+    if (qch === 6) State.badges = [true,true,true,true,true,true];   // 直达沙盒需解锁
+    goChapter(Number.isFinite(qch) && qch >= 0 && qch <= 6 ? qch : 0);
+    animate();
+    booted = true;
+    setTimeout(() => {
+      const ld = $('loading');
+      ld.classList.add('bye');
+      setTimeout(() => ld.remove(), 900);
+    }, 400);
+  } catch(err){
+    console.error(err);
+    $('loading-err').textContent = '启动遇到问题：' + err.message + '（请确认网络能访问 unpkg.com 加载 three.js，或换 Chrome / Safari 打开）';
+  }
+}
+
+// CDN 加载失败的兜底提示
+window.addEventListener('error', e => {
+  if (!booted && e.message){
+    $('loading-err').textContent = '加载失败：' + e.message + '。这个文件需要从 unpkg.com 加载 three.js，请确认已联网，或用 Chrome / Safari 打开。';
+  }
+}, true);
+
+boot();
+</script>
+</body>
+</html>
